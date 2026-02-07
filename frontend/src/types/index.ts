@@ -78,6 +78,7 @@ export interface CreditCardStackCard {
 }
 
 export interface CreditCardStack {
+  tree_name?: string;
   cards: CreditCardStackCard[];
   total_estimated_annual_value?: number;
   summary?: string;

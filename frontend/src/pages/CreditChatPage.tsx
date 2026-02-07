@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import type { ReactElement } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   Send, 
@@ -9,7 +10,8 @@ import {
   CheckCircle2, 
   Sparkles,
   Check,
-  TrendingUp
+  TrendingUp,
+  Plus
 } from "lucide-react";
 import { useUser } from "../hooks/useUser";
 import { creditChat, finalizeCreditStack, getCreditConversation } from "../services/api";
@@ -31,7 +33,7 @@ const creditFactors = [
 function renderMessageWithLinks(text: string) {
   // Match markdown links: [text](url)
   const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
-  const parts: (string | JSX.Element)[] = [];
+  const parts: (string | ReactElement)[] = [];
   let lastIndex = 0;
   let match;
 
@@ -63,6 +65,16 @@ function renderMessageWithLinks(text: string) {
   return parts.length > 0 ? parts : text;
 }
 
+// Loadout card type for the live preview
+interface LoadoutCard {
+  name: string;
+  issuer?: string;
+  reason?: string;
+  best_categories?: string[];
+  annual_fee?: number;
+  url?: string;
+}
+
 export function CreditChatPage() {
   const navigate = useNavigate();
   const { userId } = useUser();
@@ -72,6 +84,7 @@ export function CreditChatPage() {
   const [showTransition, setShowTransition] = useState(false);
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
   const [creditStack, setCreditStack] = useState<CreditCardStack | null>(null);
+  const [currentLoadout, setCurrentLoadout] = useState<{ cards: LoadoutCard[], tree_name: string | null }>({ cards: [], tree_name: null });
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [initialized, setInitialized] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -127,8 +140,11 @@ export function CreditChatPage() {
             setIsLoading(false);
           } else {
             // No existing conversation, start a new one
-            return creditChat(userId).then((response) => {
+            return creditChat(userId).then((response: any) => {
               setMessages([{ role: "assistant", content: response.response }]);
+              if (response.current_loadout) {
+                setCurrentLoadout(response.current_loadout);
+              }
             });
           }
         })
@@ -159,11 +175,15 @@ export function CreditChatPage() {
     setIsLoading(true);
 
     try {
-      const response = await creditChat(userId, userMessage);
+      const response: any = await creditChat(userId, userMessage);
       setMessages((prev) => [
         ...prev,
         { role: "assistant", content: response.response },
       ]);
+      // Update the live loadout
+      if (response.current_loadout) {
+        setCurrentLoadout(response.current_loadout);
+      }
     } catch (error) {
       setMessages((prev) => [
         ...prev,
@@ -187,6 +207,7 @@ export function CreditChatPage() {
       // Small delay to let the animation complete
       setTimeout(() => {
         setCreditStack(result);
+        setCurrentLoadout({ cards: result.cards || [], tree_name: result.tree_name || null });
         setShowTransition(false);
       }, 500);
     } catch (error) {
@@ -211,23 +232,25 @@ export function CreditChatPage() {
       <div>
         <h1 className="text-2xl sm:text-3xl text-[#1e3a5f] mb-2">Credit Card Advisor</h1>
         <p className="text-sm sm:text-base text-gray-600">
-          Tell me about your spending habits and I'll recommend the perfect cards for you
+          Tell me about your spending habits and I'll build your perfect card loadout
         </p>
       </div>
 
-      {/* AI Chat Card */}
-      <Card className="overflow-hidden">
-        <div className="bg-gradient-to-r from-[#1e3a5f] to-[#2d4f7f] px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <div className="text-white">
-              <h2 className="font-semibold">AI Credit Card Advisor</h2>
-              <p className="text-sm text-white/80">Personalized recommendations</p>
+      {/* Main Content - Chat and Loadout side by side on desktop */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* AI Chat Card - Takes 2 columns on desktop */}
+        <Card className="overflow-hidden lg:col-span-2">
+          <div className="bg-gradient-to-r from-[#1e3a5f] to-[#2d4f7f] px-6 py-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                <Sparkles className="w-5 h-5 text-white" />
+              </div>
+              <div className="text-white">
+                <h2 className="font-semibold">AI Credit Card Advisor</h2>
+                <p className="text-sm text-white/80">Personalized recommendations</p>
+              </div>
             </div>
           </div>
-        </div>
 
         {/* Messages */}
         <div 
@@ -295,84 +318,155 @@ export function CreditChatPage() {
             <Button
               onClick={handleSend}
               disabled={!input.trim() || isLoading}
-              className="bg-[#1e3a5f] hover:bg-[#2d4f7f] text-blue"
+              className="bg-[#1e3a5f] hover:bg-[#2d4f7f] text-white"
             >
               <Send className="w-5 h-5" />
-            </Button>
-          </div>
-          <div className="mt-4 flex justify-center">
-            <Button
-              onClick={handleFinalize}
-              disabled={isFinalizing}
-              className="bg-[#1e3a5f] hover:bg-[#2d4f7f] text-white text-lg h-14 w-48"
-            >
-              {isFinalizing ? (
-                <>
-                  <Loader2 className="w-6 h-6 animate-spin mr-2" />
-                  Finalizing...
-                </>
-              ) : (
-                "Finalize"
-              )}
             </Button>
           </div>
         </div>
       </Card>
 
-      {/* Credit Stack Results - appears below chat when finalized */}
+        {/* Credit Card Loadout - Permanent sidebar */}
+        <Card className="overflow-hidden h-fit">
+          <div className="bg-gradient-to-r from-[#1e3a5f] to-[#2d4f7f] px-4 py-3">
+            <div className="flex items-center gap-2">
+              <CreditCard className="w-5 h-5 text-white" />
+              <h3 className="font-semibold text-white">Your Card Loadout</h3>
+            </div>
+            {currentLoadout.tree_name && (
+              <p className="text-sm text-white mt-1">🌳 {currentLoadout.tree_name}</p>
+            )}
+          </div>
+
+          <div className="p-4 space-y-3">
+            {currentLoadout.cards.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="w-16 h-16 mx-auto mb-3 bg-gray-100 rounded-full flex items-center justify-center">
+                  <Plus className="w-8 h-8 text-gray-400" />
+                </div>
+                <p className="text-gray-500 text-sm">
+                  Chat with the AI advisor to discover cards that match your lifestyle
+                </p>
+              </div>
+            ) : (
+              <>
+                {currentLoadout.cards.map((card, index) => (
+                  <div
+                    key={index}
+                    className="p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200 hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 bg-[#1e3a5f] rounded-lg flex items-center justify-center flex-shrink-0">
+                        <CreditCard className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-[#1e3a5f] text-sm truncate">{card.name}</p>
+                        {card.issuer && (
+                          <p className="text-xs text-gray-500">{card.issuer}</p>
+                        )}
+                        {card.best_categories && card.best_categories.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {card.best_categories.slice(0, 2).map((cat, idx) => (
+                              <span
+                                key={idx}
+                                className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs"
+                              >
+                                {cat}
+                              </span>
+                            ))}
+                            {card.best_categories.length > 2 && (
+                              <span className="px-2 py-0.5 bg-gray-200 text-gray-600 rounded text-xs">
+                                +{card.best_categories.length - 2}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Finalize Button in loadout */}
+                <Button
+                  onClick={handleFinalize}
+                  disabled={isFinalizing}
+                  className="w-full bg-[#1e3a5f] hover:bg-[#2d4f7f] text-white mt-4"
+                >
+                  {isFinalizing ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Finalizing Your Credit Forest...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4 mr-2" />
+                      Finalize Credit Forest
+                    </>
+                  )}
+                </Button>
+              </>
+            )}
+          </div>
+        </Card>
+      </div>
+
+      {/* Finalized Credit Stack Details - Full width below */}
       {creditStack && (
         <>
           {/* Your Credit Card Stack Header */}
-          <div>
-            <h2 className="text-xl sm:text-2xl text-[#1e3a5f] mb-2">Your Credit Card Stack</h2>
+          <div className="text-center">
+            {creditStack.tree_name && (
+              <div className="flex items-center justify-center gap-3 mb-2">
+                <span className="text-3xl">🌳</span>
+                <h2 className="text-2xl sm:text-3xl font-bold text-[#1e3a5f]">{creditStack.tree_name}</h2>
+                <span className="text-3xl">🌳</span>
+              </div>
+            )}
             <p className="text-sm sm:text-base text-gray-600">
-              Personalized recommendations based on your lifestyle
+              Your personalized credit card stack based on your lifestyle
             </p>
           </div>
 
           {/* Recommended Cards */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {creditStack.cards?.map((card, index) => (
-              <Card key={index} className="overflow-hidden hover:shadow-xl transition-shadow">
+              <Card key={index} className="overflow-hidden hover:shadow-xl transition-shadow flex flex-col">
                 {/* Card Header */}
-                <div className="relative h-32 sm:h-40 bg-gradient-to-br from-[#1e3a5f] to-[#2d4f7f] p-4 sm:p-5">
-                  <div className="absolute top-4 right-4">
-                    <CreditCard className="w-8 h-8 text-blue/30" />
-                  </div>
-                  <div className="absolute bottom-4 left-4 text-blue">
-                    <div className="text-xs sm:text-sm opacity-80">{card.issuer || "Credit Card"}</div>
-                    <h4 className="text-base sm:text-lg font-semibold mt-1">{card.name}</h4>
+                <div className="relative h-30 sm:h-48 bg-gradient-to-br from-[#1e3a5f] to-[#2d4f7f] p-6">
+                  <div className="absolute bottom-4 left-6 right-6 text-white">
+                    <div className="text-sm text-white/80 mb-1">{card.issuer || "Credit Card"}</div>
+                    <h4 className="text-xl sm:text-2xl font-bold leading-tight">{card.name}</h4>
                   </div>
                 </div>
 
-                <div className="p-4 sm:p-6 space-y-4">
+                <div className="p-5 sm:p-6 space-y-5 flex-1 flex flex-col">
                   {/* Annual Fee */}
-                  <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center justify-between text-sm border-b border-gray-100 pb-3">
                     <span className="text-gray-600">Annual Fee</span>
-                    <span className="font-medium text-[#1e3a5f]">
+                    <span className="font-semibold text-[#1e3a5f] text-base">
                       {card.annual_fee === 0 ? 'No Fee' : `$${card.annual_fee || 0}`}
                     </span>
                   </div>
 
                   {/* Personalized Reason */}
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                    <div className="flex items-start gap-2">
-                      <Sparkles className="w-4 h-4 text-[#1e3a5f] flex-shrink-0 mt-0.5" />
-                      <p className="text-xs sm:text-sm text-gray-700">{card.reason}</p>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <Sparkles className="w-5 h-5 text-[#1e3a5f] flex-shrink-0 mt-0.5" />
+                      <p className="text-sm text-gray-700 leading-relaxed">{card.reason}</p>
                     </div>
                   </div>
 
                   {/* Best Categories */}
                   {card.best_categories && card.best_categories.length > 0 && (
                     <div>
-                      <h5 className="text-sm font-medium text-[#1e3a5f] mb-2">Best For</h5>
+                      <h5 className="text-sm font-semibold text-[#1e3a5f] mb-3">Best For</h5>
                       <div className="flex flex-wrap gap-2">
                         {card.best_categories.map((cat, idx) => (
                           <span
                             key={idx}
-                            className="px-2 py-1 bg-green-50 text-green-700 rounded-full text-xs flex items-center gap-1"
+                            className="px-3 py-1.5 bg-green-50 text-green-700 rounded-full text-xs font-medium flex items-center gap-1.5"
                           >
-                            <Check className="w-3 h-3" />
+                            <Check className="w-3.5 h-3.5" />
                             {cat}
                           </span>
                         ))}
@@ -380,19 +474,23 @@ export function CreditChatPage() {
                     </div>
                   )}
 
+                  {/* Spacer to push button to bottom */}
+                  <div className="flex-1" />
+
+                  {/* Apply Button */}
                   {card.url ? (
                     <a
                       href={card.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block"
+                      className="block mt-2"
                     >
-                      <Button className="w-full bg-[#1e3a5f] hover:bg-[#2d4f7f] text-white text-sm">
+                      <Button className="w-full bg-[#1e3a5f] hover:bg-[#2d4f7f] text-white py-3">
                         Learn More & Apply
                       </Button>
                     </a>
                   ) : (
-                    <Button className="w-full bg-[#1e3a5f] hover:bg-[#2d4f7f] text-white text-sm">
+                    <Button className="w-full bg-[#1e3a5f] hover:bg-[#2d4f7f] text-white py-3 mt-2">
                       Learn More
                     </Button>
                   )}
@@ -421,24 +519,6 @@ export function CreditChatPage() {
             </Card>
           )}
 
-          {/* Actions */}
-          <div className="flex gap-3">
-            <Button
-              onClick={() => navigate("/dashboard")}
-              className="flex-1 bg-[#1e3a5f] hover:bg-[#2d4f7f] text-white py-3"
-            >
-              Continue to Dashboard
-            </Button>
-            <Button
-              onClick={() => {
-                setCreditStack(null);
-              }}
-              variant="outline"
-              className="px-6 py-3"
-            >
-              Clear Results
-            </Button>
-          </div>
         </>
       )}
 
