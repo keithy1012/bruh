@@ -7,17 +7,16 @@ import json
 import asyncio
 from decimal import Decimal
 import uvicorn
+from pydantic import BaseModel
 
 from models.UserProfile import UserProfile
 from models.FinancialGoal import FinancialGoal
 from models.ParsedStatement import ParsedStatement
 from models.Mission import Mission
-from models.UserStreak import UserStreak
 from models.SocialFeed import SocialFeed
 from agents.GoalPlanningAgent import GoalPlanningAgent
 from agents.StatementParsingAgent import StatementParsingAgent
 from agents.CreditOptimizationAgent import CreditOptimizationAgent
-from agents.SpendingAnalysisAgent import SpendingAnalysisAgent
 from agents.MissionGenerationAgent import MissionGenerationAgent
 
 # Initialize FastAPI app
@@ -41,45 +40,29 @@ users_db: Dict[str, UserProfile] = {}
 goals_db: Dict[str, List[FinancialGoal]] = {}
 statements_db: Dict[str, ParsedStatement] = {}
 missions_db: Dict[str, List[Mission]] = {}
-streaks_db: Dict[str, UserStreak] = {}
 social_feed: List[SocialFeed] = []
 
+class OnboardRequest(BaseModel):
+    age: int
+    annual_income: float
+    debts: List[Dict[str, Any]] = []
+
 @app.post("/api/users/onboard")
-async def onboard_user(
-    age: int,
-    annual_income: float,
-    debts: List[Dict[str, Any]],
-    bank_statement: UploadFile = File(...)
-):
+async def onboard_user(request: OnboardRequest):
     """
-    Initial user onboarding: upload statement and basic info
+    Initial user onboarding: basic info (age, income, debts)
     """
     user_id = f"user_{datetime.now().timestamp()}"
     
     # Create user profile
     user_profile = UserProfile(
         user_id=user_id,
-        age=age,
-        annual_income=annual_income,
-        debts=debts
+        age=request.age,
+        annual_income=request.annual_income,
+        debts=request.debts
     )
     users_db[user_id] = user_profile
-    
-    # Parse bank statement
-    file_content = await bank_statement.read()
-    parsed_statement = await StatementParsingAgent.parse_statement(file_content, user_id)
-    statements_db[user_id] = parsed_statement
-    
-    # Initialize user streak
-    streaks_db[user_id] = UserStreak(
-        user_id=user_id,
-        username=f"User{user_id[-4:]}",
-        current_streak=0,
-        longest_streak=0,
-        total_missions_completed=0,
-        shark_level=1
-    )
-    
+
     return {
         "user_id": user_id,
         "message": "Onboarding successful",
@@ -116,8 +99,11 @@ async def finalize_goals(user_id: str, conversation_history: List[Dict]):
 # In-memory storage for credit optimization conversations
 credit_conversations_db: Dict[str, List[Dict]] = {}
 
+class CreditChatRequest(BaseModel):
+    message: Optional[str] = None
+
 @app.post("/api/credit/chat/{user_id}")
-async def credit_optimization_chat(user_id: str, message: Optional[str] = None):
+async def credit_optimization_chat(user_id: str, request: CreditChatRequest = CreditChatRequest()):
     """
     Chat with Credit Optimization Agent to learn about lifestyle and recommend credit cards.
     Pass message=None to start a new conversation.
@@ -127,7 +113,7 @@ async def credit_optimization_chat(user_id: str, message: Optional[str] = None):
     user_profile = users_db[user_id]
     goals = goals_db.get(user_id, [])
     conversation_history = credit_conversations_db.get(user_id, [])
-    result = await CreditOptimizationAgent.chat(user_profile, goals, conversation_history, message)
+    result = await CreditOptimizationAgent.chat(user_profile, goals, conversation_history, request.message)
     credit_conversations_db[user_id] = result["conversation_history"]
     return result
 
@@ -169,6 +155,7 @@ async def get_credit_paths(user_id: str, upcoming_loan: Optional[str] = None):
     
     return result
 
+'''
 @app.get("/api/spending/report/{user_id}")
 async def get_spending_report(user_id: str):
     """
@@ -181,6 +168,7 @@ async def get_spending_report(user_id: str):
     report = await SpendingAnalysisAgent.analyze_spending(parsed_statement)
     
     return report
+'''
 
 @app.get("/api/missions/{user_id}")
 async def get_missions(user_id: str):
@@ -194,7 +182,7 @@ async def get_missions(user_id: str):
     if user_id not in missions_db:
         user_profile = users_db[user_id]
         goals = goals_db.get(user_id, [])
-        
+        '''
         # Need spending report for mission generation
         if user_id in statements_db:
             parsed_statement = statements_db[user_id]
@@ -207,13 +195,13 @@ async def get_missions(user_id: str):
             missions_db[user_id] = missions
         else:
             return {"missions": []}
-    
+        '''
     return {"missions": missions_db[user_id]}
 
 @app.post("/api/missions/{mission_id}/complete")
 async def complete_mission(mission_id: str, user_id: str):
     """
-    Mark a mission as complete and update streak
+    Mark a mission as complete and update
     """
     if user_id not in missions_db:
         raise HTTPException(status_code=404, detail="No missions found")
@@ -226,29 +214,11 @@ async def complete_mission(mission_id: str, user_id: str):
     
     mission.status = "completed"
     
-    # Update streak
-    streak = streaks_db[user_id]
-    streak.current_streak += 1
-    streak.total_missions_completed += 1
-    streak.longest_streak = max(streak.longest_streak, streak.current_streak)
-    
-    # Level up shark every 10 missions
-    streak.shark_level = min(10, (streak.total_missions_completed // 10) + 1)
-    
-    # Add to social feed
-    if streak.current_streak % 5 == 0:  # Every 5 missions
-        social_feed.append(SocialFeed(
-            feed_id=f"feed_{len(social_feed)}",
-            user_id=user_id,
-            username=streak.username,
-            activity_type="streak_milestone",
-            message=f"{streak.username} just hit a {streak.current_streak} goal streak! 🔥"
-        ))
+
+
     
     return {
         "mission": mission,
-        "streak": streak,
-        "shark_level": streak.shark_level
     }
 
 @app.get("/api/social/feed")
@@ -258,39 +228,6 @@ async def get_social_feed(limit: int = 20):
     """
     return {"feed": social_feed[-limit:]}
 
-@app.get("/api/shark/{user_id}")
-async def get_shark_status(user_id: str):
-    """
-    Get user's shark growth status
-    """
-    if user_id not in streaks_db:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    streak = streaks_db[user_id]
-    
-    return {
-        "shark_level": streak.shark_level,
-        "current_streak": streak.current_streak,
-        "total_missions": streak.total_missions_completed,
-        "next_level_at": (streak.shark_level * 10),
-        "progress": (streak.total_missions_completed % 10) / 10 * 100
-    }
-
-@app.get("/api/dashboard/{user_id}")
-async def get_dashboard(user_id: str):
-    """
-    Get complete dashboard data for user
-    """
-    if user_id not in users_db:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    return {
-        "user_profile": users_db.get(user_id),
-        "goals": goals_db.get(user_id, []),
-        "missions": missions_db.get(user_id, []),
-        "streak": streaks_db.get(user_id),
-        "spending_summary": statements_db.get(user_id)
-    }
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

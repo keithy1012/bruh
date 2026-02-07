@@ -1,11 +1,14 @@
 
 from typing import List, Dict
 from datetime import date
-import os
 import json
+from dotenv import load_dotenv
+import os
 from models.UserProfile import UserProfile
 from models.FinancialGoal import FinancialGoal
 from dedalus_labs import AsyncDedalus
+
+load_dotenv()
 
 class GoalPlanningAgent:
     """Long-term financial goal modeling agent"""

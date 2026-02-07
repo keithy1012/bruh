@@ -1,11 +1,14 @@
 
 from datetime import datetime, date
-import os
 import json
+from dotenv import load_dotenv
+import os
 from models.Transaction import Transaction
 from models.SpendingReport import SpendingReport
 from models.SpendingInsight import SpendingInsight
 from dedalus_labs import AsyncDedalus
+
+load_dotenv()
 
 class StatementParsingAgent:
     """PDF ingestion and financial data extraction using Dedalus LLM"""

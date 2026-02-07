@@ -1,9 +1,12 @@
 from typing import List, Optional, Dict, Any
-import os
 import json
+from dotenv import load_dotenv
+import os
 from models.UserProfile import UserProfile
 from models.FinancialGoal import FinancialGoal
 from dedalus_labs import AsyncDedalus
+
+load_dotenv()
 
 class CreditOptimizationAgent:
     """Credit card recommendations and stack optimization"""
