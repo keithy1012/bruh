@@ -7,7 +7,6 @@ import { Textarea } from './ui/textarea';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import React from "react";
 
-
 interface CreditCardRecommendation {
   name: string;
   issuer: string;
