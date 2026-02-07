@@ -4,6 +4,7 @@ import { MainLayout } from "./layouts/MainLayout";
 import { OnboardingPage } from "./pages/OnboardingPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { GoalChatPage } from "./pages/GoalChatPage";
+import { GoalDetailPage } from "./pages/GoalDetailPage";
 import { CreditChatPage } from "./pages/CreditChatPage";
 import { GoalsPage } from "./components/GoalsPage";
 import { LearningPage } from "./components/LearningPage";
@@ -45,6 +46,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <GoalChatPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/goals/:goalId"
+          element={
+            <ProtectedRoute>
+              <GoalDetailPage />
             </ProtectedRoute>
           }
         />

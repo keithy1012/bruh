@@ -133,48 +133,60 @@ export function GoalsPage() {
             const progress = (currentAmount / goal.target_amount) * 100;
             
             return (
-              <Card key={goal.goal_id} className="p-4 sm:p-6 hover:shadow-lg transition-shadow border-2 border-gray-100">
+              <Card key={goal.goal_id} className="p-4 sm:p-6 hover:shadow-lg transition-shadow border-2 border-gray-100 cursor-pointer group">
                 <div className="space-y-3 sm:space-y-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <Target className="w-4 h-4 sm:w-5 sm:h-5 text-[#1e3a5f] flex-shrink-0" />
-                      <h3 className="text-sm sm:text-base text-[#1e3a5f] truncate">{goal.title}</h3>
+                  {/* Clickable area for navigation */}
+                  <div 
+                    onClick={() => navigate(`/goals/${goal.goal_id}`)}
+                    className="space-y-3 sm:space-y-4"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <Target className="w-4 h-4 sm:w-5 sm:h-5 text-[#1e3a5f] flex-shrink-0" />
+                        <h3 className="text-sm sm:text-base text-[#1e3a5f] truncate group-hover:underline">{goal.title}</h3>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteGoal(goal.goal_id);
+                        }}
+                        className="text-gray-400 hover:text-red-500 transition-colors ml-2 flex-shrink-0"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
-                    <button
-                      onClick={() => deleteGoal(goal.goal_id)}
-                      className="text-gray-400 hover:text-red-500 transition-colors ml-2 flex-shrink-0"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
 
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-xs sm:text-sm">
-                      <span className="text-gray-600">Progress</span>
-                      <span className="text-[#1e3a5f]">{progress.toFixed(0)}%</span>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-xs sm:text-sm">
+                        <span className="text-gray-600">Progress</span>
+                        <span className="text-[#1e3a5f]">{progress.toFixed(0)}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-[#1e3a5f] h-2 rounded-full transition-all"
+                          style={{ width: `${Math.min(progress, 100)}%` }}
+                        />
+                      </div>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-[#1e3a5f] h-2 rounded-full transition-all"
-                        style={{ width: `${Math.min(progress, 100)}%` }}
-                      />
-                    </div>
-                  </div>
 
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
-                      <DollarSign className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                      <span>${currentAmount.toLocaleString()} of ${goal.target_amount.toLocaleString()}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
-                      <Calendar className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                      <span className="truncate">Target: {new Date(goal.target_date).toLocaleDateString()}</span>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
+                        <DollarSign className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                        <span>${currentAmount.toLocaleString()} of ${goal.target_amount.toLocaleString()}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
+                        <Calendar className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                        <span className="truncate">Target: {new Date(goal.target_date).toLocaleDateString()}</span>
+                      </div>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2 pt-2">
                     <Button
-                      onClick={() => toggleRoadmap(goal.goal_id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleRoadmap(goal.goal_id);
+                      }}
                       variant={goal.on_roadmap ? "default" : "outline"}
                       className={`flex-1 text-xs sm:text-sm ${
                         goal.on_roadmap 

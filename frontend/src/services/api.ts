@@ -73,6 +73,36 @@ class ApiService {
     return this.request(`/api/goals/${userId}`);
   }
 
+  // Get Single Goal
+  async getGoal(userId: string, goalId: string): Promise<{ goal: FinancialGoal }> {
+    return this.request(`/api/goals/${userId}/${goalId}`);
+  }
+
+  // Get Goal Missions
+  async getGoalMissions(userId: string, goalId: string): Promise<{ missions: Mission[] }> {
+    return this.request(`/api/goals/${userId}/${goalId}/missions`);
+  }
+
+  // Generate Goal Missions
+  async generateGoalMissions(userId: string, goalId: string): Promise<{ missions: Mission[]; message: string }> {
+    return this.request(`/api/goals/${userId}/${goalId}/missions/generate`, {
+      method: "POST",
+    });
+  }
+
+  // Update Mission Status (for goal-specific missions)
+  async updateMissionStatus(
+    userId: string, 
+    goalId: string, 
+    missionId: string, 
+    status: "active" | "completed" | "failed"
+  ): Promise<{ mission: Mission; message: string }> {
+    return this.request(`/api/goals/${userId}/${goalId}/missions/${missionId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    });
+  }
+
   // Update Goal
   async updateGoal(
     userId: string,

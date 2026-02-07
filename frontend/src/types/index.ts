@@ -101,12 +101,14 @@ export interface Mission {
   user_id: string;
   title: string;
   description: string;
-  mission_type: "savings" | "spending" | "investment" | "debt" | "learning";
+  mission_type: "SAVINGS" | "SPENDING_REDUCTION" | "LEARNING" | "CHALLENGE" | "INVESTMENT";
   target_value?: number;
   deadline: string;
   points: number;
   status: "active" | "completed" | "failed";
   created_at?: string;
+  goal_id?: string;
+  milestone_percent?: number | null;
 }
 
 // User Streak Types

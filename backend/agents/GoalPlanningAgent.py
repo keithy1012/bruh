@@ -6,17 +6,9 @@ from dotenv import load_dotenv
 import os
 from models.UserProfile import UserProfile
 from models.FinancialGoal import FinancialGoal
-from dedalus_labs import AsyncDedalus, DedalusRunner
+from dedalus_labs import AsyncDedalus
 
 load_dotenv()
-
-# MCP Server configuration for Financial Planner
-FINANCIAL_PLANNER_MCP = {
-    "financial-planner": {
-        "command": "npx",
-        "args": ["-y", "@mohanputti/financial-planner-mcp"]
-    }
-}
 
 class GoalPlanningAgent:
     """Long-term financial goal modeling agent with Financial Planner MCP integration"""

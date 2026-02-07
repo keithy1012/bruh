@@ -179,6 +179,93 @@ async def delete_goal(user_id: str, goal_id: str):
     goals_db[user_id] = [g for g in goals if g.goal_id != goal_id]
     return {"message": "Goal deleted successfully"}
 
+# In-memory storage for generated missions per goal
+missions_db: Dict[str, Dict[str, List[Mission]]] = {}  # user_id -> goal_id -> missions
+
+@app.get("/api/goals/{user_id}/{goal_id}")
+async def get_goal_detail(user_id: str, goal_id: str):
+    """
+    Get a specific goal with its details
+    """
+    if user_id not in users_db:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user_id not in goals_db:
+        raise HTTPException(status_code=404, detail="No goals found for user")
+    
+    goals = goals_db[user_id]
+    goal = next((g for g in goals if g.goal_id == goal_id), None)
+    
+    if not goal:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    
+    return {"goal": goal}
+
+@app.get("/api/goals/{user_id}/{goal_id}/missions")
+async def get_goal_missions(user_id: str, goal_id: str):
+    """
+    Get missions for a specific goal. Returns cached missions if they exist.
+    """
+    if user_id not in users_db:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Check if missions already exist for this goal
+    if user_id in missions_db and goal_id in missions_db[user_id]:
+        return {"missions": missions_db[user_id][goal_id]}
+    
+    return {"missions": []}
+
+@app.post("/api/goals/{user_id}/{goal_id}/missions/generate")
+async def generate_goal_missions(user_id: str, goal_id: str):
+    """
+    Generate a mission roadmap for a specific goal using MissionGenerationAgent
+    """
+    if user_id not in users_db:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user_id not in goals_db:
+        raise HTTPException(status_code=404, detail="No goals found for user")
+    
+    user_profile = users_db[user_id]
+    goals = goals_db[user_id]
+    goal = next((g for g in goals if g.goal_id == goal_id), None)
+    
+    if not goal:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    
+    # Generate missions using the agent
+    missions = await MissionGenerationAgent.generate_mission_roadmap(user_profile, goal)
+    
+    # Store missions in database
+    if user_id not in missions_db:
+        missions_db[user_id] = {}
+    missions_db[user_id][goal_id] = missions
+    
+    return {"missions": missions, "message": "Missions generated successfully"}
+
+class UpdateMissionRequest(BaseModel):
+    status: Optional[str] = None  # "active", "completed", "failed"
+
+@app.patch("/api/goals/{user_id}/{goal_id}/missions/{mission_id}")
+async def update_mission(user_id: str, goal_id: str, mission_id: str, request: UpdateMissionRequest):
+    """
+    Update a mission's status (e.g., mark as completed)
+    """
+    if user_id not in users_db:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if user_id not in missions_db or goal_id not in missions_db[user_id]:
+        raise HTTPException(status_code=404, detail="No missions found for this goal")
+    
+    missions = missions_db[user_id][goal_id]
+    mission = next((m for m in missions if m.mission_id == mission_id), None)
+    
+    if not mission:
+        raise HTTPException(status_code=404, detail="Mission not found")
+    
+    if request.status is not None:
+        mission.status = request.status
+    
+    return {"mission": mission, "message": "Mission updated successfully"}
+
 # In-memory storage for credit optimization conversations
 credit_conversations_db: Dict[str, List[Dict]] = {}
 
