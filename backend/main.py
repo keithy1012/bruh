@@ -118,6 +118,9 @@ async def finalize_goals(user_id: str):
     conversation_history = goal_conversations_db[user_id]
     goals = await GoalPlanningAgent.finalize_goals(conversation_history)
     
+    # Clear conversation history after finalizing
+    goal_conversations_db[user_id] = []
+    
     # Assign user_id to each goal
     for goal in goals:
         goal.user_id = user_id
