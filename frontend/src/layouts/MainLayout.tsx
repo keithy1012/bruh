@@ -38,7 +38,7 @@ export function MainLayout({ children }: MainLayoutProps) {
           <div className="flex items-center justify-between h-14 sm:h-16">
             <Link to="/dashboard" className="flex items-center gap-2">
               <Wallet className="w-6 h-6 sm:w-8 sm:h-8" />
-              <h1 className="text-lg sm:text-xl font-semibold">MoneyTree</h1>
+              <h1 className="text-lg sm:text-xl font-semibold">MoneyTrees</h1>
             </Link>
 
             {/* Desktop Navigation */}
