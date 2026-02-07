@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Wallet, ArrowRight, Plus, Trash2 } from "lucide-react";
+import { Wallet, ArrowRight, Plus, Trash2, Upload } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Card } from "../components/ui/card";
@@ -19,6 +19,7 @@ export function OnboardingPage() {
   const [step, setStep] = useState(1);
   const [age, setAge] = useState<number | "">("");
   const [annualIncome, setAnnualIncome] = useState<number | "">("");
+  const [csvFile, setCsvFile] = useState<File | null>(null);
   const [debts, setDebts] = useState<Debt[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +44,22 @@ export function OnboardingPage() {
 
   const removeDebt = (index: number) => {
     setDebts(debts.filter((_, i) => i !== index));
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.type !== "text/csv" && !file.name.endsWith(".csv")) {
+        setError("Please upload a CSV file");
+        return;
+      }
+      setCsvFile(file);
+      setError(null);
+    }
+  };
+
+  const removeFile = () => {
+    setCsvFile(null);
   };
 
   const handleSubmit = async () => {
@@ -88,7 +105,7 @@ export function OnboardingPage() {
         {/* Progress indicator */}
         <div className="flex justify-center mb-8">
           <div className="flex items-center gap-2">
-            {[1, 2, 3].map((s) => (
+            {[1, 2, 3, 4].map((s) => (
               <div
                 key={s}
                 className={`w-3 h-3 rounded-full transition-colors ${
@@ -212,6 +229,80 @@ export function OnboardingPage() {
                 Back
               </Button>
               <Button
+                onClick={() => setStep(4)}
+                disabled={isLoading}
+                className="flex-1 bg-[#1e3a5f] hover:bg-[#2d4f7f]"
+              >
+                {isLoading ? "Setting up..." : "Get Started"}
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </div>
+          </div>
+        )}
+               {step === 4 && (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Upload Bank Transactions (Optional)
+              </label>
+              <p className="text-sm text-gray-500 mb-3">
+                Upload a CSV file of your recent bank statement to get
+                personalized insights
+              </p>
+              {!csvFile ? (
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-[#1e3a5f] transition-colors">
+                  <input
+                    type="file"
+                    accept=".csv"
+                    onChange={handleFileChange}
+                    className="hidden"
+                    id="csv-upload"
+                  />
+                  <label
+                    htmlFor="csv-upload"
+                    className="cursor-pointer flex flex-col items-center"
+                  >
+                    <Upload className="w-10 h-10 text-gray-400 mb-2" />
+                    <span className="text-sm font-medium text-gray-700">
+                      Click to upload CSV
+                    </span>
+                    <span className="text-xs text-gray-500 mt-1">
+                      or drag and drop
+                    </span>
+                  </label>
+                </div>
+              ) : (
+                <div className="border border-gray-300 rounded-lg p-4 flex items-center justify-between bg-gray-50">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-[#1e3a5f] rounded p-2">
+                      <Upload className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">
+                        {csvFile.name}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {(csvFile.size / 1024).toFixed(2)} KB
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={removeFile}
+                    className="hover:bg-red-50 hover:text-red-600"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setStep(3)}>
+                Back
+              </Button>
+              <Button
                 onClick={handleSubmit}
                 disabled={isLoading}
                 className="flex-1 bg-[#1e3a5f] hover:bg-[#2d4f7f]"
@@ -222,6 +313,7 @@ export function OnboardingPage() {
             </div>
           </div>
         )}
+      
       </Card>
     </div>
   );
