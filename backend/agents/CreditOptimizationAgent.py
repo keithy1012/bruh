@@ -88,6 +88,7 @@ class CreditOptimizationAgent:
             "groceries, gas, online shopping, subscriptions, etc. "
             "Ask one or two questions at a time. Be friendly and conversational. "
             "Once you have enough information, recommend a credit card stack (2-4 cards) that maximizes their rewards. "
+            "You can prioritize or give a slight bias to Capital One cards, but only if it makes sense. "
             "IMPORTANT: When you mention a specific credit card by name, ALWAYS format it as a markdown link "
             "using the official card application or info page URL. For example: "
             "[Chase Sapphire Preferred](https://creditcards.chase.com/rewards-credit-cards/sapphire/preferred) "
@@ -97,8 +98,13 @@ class CreditOptimizationAgent:
 
         # If conversation is empty, start with an intro
         if not conversation_history:
+            debt_info = ""
+            if user_profile.debts:
+                # Format debts as "debt_name: $amount" for readability
+                debt_list = ", ".join([f"{d['type']}: ${d['amount']:,.2f}" for d in user_profile.debts])
+                debt_info = f" I also see you have some debts: {debt_list}."
             intro = (
-                f"Hi! I see you're {user_profile.age} years old with an annual income of ${user_profile.annual_income:,.2f}. "
+                f"Hi! I see you're {user_profile.age} years old with an annual income of ${user_profile.annual_income:,.2f}.{debt_info} "
                 "Let's find the best credit cards for you! First, how often do you travel (flights, hotels) in a year?"
             )
             conversation_history.append({"role": "assistant", "content": intro})

@@ -389,8 +389,9 @@ async def update_mission(user_id: str, goal_id: str, mission_id: str, request: U
     
     return {"mission": mission, "message": "Mission updated successfully"}
 
-# In-memory storage for credit optimization conversations
+# In-memory storage for credit optimization conversations and finalized stacks
 credit_conversations_db: Dict[str, List[Dict]] = {}
+credit_stacks_db: Dict[str, Dict] = {}
 
 class CreditChatRequest(BaseModel):
     message: Optional[str] = None
@@ -400,12 +401,14 @@ async def get_credit_conversation(user_id: str):
     """
     Get existing conversation history for credit optimization.
     Returns empty list if no conversation exists.
+    Also returns finalized stack if one exists.
     """
     if user_id not in users_db:
         raise HTTPException(status_code=404, detail="User not found")
     
     conversation_history = credit_conversations_db.get(user_id, [])
-    return {"conversation_history": conversation_history}
+    finalized_stack = credit_stacks_db.get(user_id, None)
+    return {"conversation_history": conversation_history, "finalized_stack": finalized_stack}
 
 @app.post("/api/credit/chat/{user_id}")
 async def credit_optimization_chat(user_id: str, request: CreditChatRequest = CreditChatRequest()):
@@ -426,6 +429,7 @@ async def credit_optimization_chat(user_id: str, request: CreditChatRequest = Cr
 async def credit_optimization_finalize(user_id: str):
     """
     Finalize credit card stack recommendation after chatting.
+    Saves the finalized stack for persistence.
     """
     if user_id not in users_db:
         raise HTTPException(status_code=404, detail="User not found")
@@ -435,6 +439,8 @@ async def credit_optimization_finalize(user_id: str):
     if not conversation_history:
         raise HTTPException(status_code=400, detail="No conversation history found. Please chat first.")
     result = await CreditOptimizationAgent.finalize_stack(user_profile, goals, conversation_history)
+    # Save the finalized stack for persistence
+    credit_stacks_db[user_id] = result
     return result
 
 @app.get("/api/credit/paths/{user_id}")

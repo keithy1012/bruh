@@ -173,7 +173,7 @@ class ApiService {
   // Get Credit Conversation History
   async getCreditConversation(
     userId: string
-  ): Promise<{ conversation_history: Array<{ role: string; content: string }> }> {
+  ): Promise<{ conversation_history: Array<{ role: string; content: string }>; finalized_stack?: CreditCardStack }> {
     return this.request(`/api/credit/chat/${userId}`);
   }
 

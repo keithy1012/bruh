@@ -134,6 +134,18 @@ export function CreditChatPage() {
       // First, try to get existing conversation
       getCreditConversation(userId)
         .then((existingConvo) => {
+          // If there's a finalized stack, restore it
+          if (existingConvo.finalized_stack) {
+            setCreditStack(existingConvo.finalized_stack as CreditCardStack);
+            // Also set current loadout from the finalized stack
+            if (existingConvo.finalized_stack.cards) {
+              setCurrentLoadout({
+                cards: existingConvo.finalized_stack.cards,
+                tree_name: existingConvo.finalized_stack.tree_name || null
+              });
+            }
+          }
+          
           if (existingConvo.conversation_history && existingConvo.conversation_history.length > 0) {
             // Restore existing conversation
             setMessages(existingConvo.conversation_history as ChatMessage[]);
@@ -230,7 +242,7 @@ export function CreditChatPage() {
     <div className="space-y-6 sm:space-y-8 pb-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl sm:text-3xl text-[#1e3a5f] mb-2">Credit Card Advisor</h1>
+        <h1 className="text-2xl sm:text-3xl text-[#1e3a5f] mb-2">Build Your Credit Forest</h1>
         <p className="text-sm sm:text-base text-gray-600">
           Tell me about your spending habits and I'll build your perfect card loadout
         </p>
