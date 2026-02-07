@@ -64,7 +64,7 @@ export function DashboardPage() {
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="p-4 sm:p-6">
+        <Card className="p-4 sm:p-6 animate-slide-in-left">
           <div className="flex items-center gap-3 mb-2">
             <Target className="w-5 h-5 text-[#1e3a5f]" />
             <span className="text-sm text-gray-600">Active Goals</span>
@@ -74,7 +74,7 @@ export function DashboardPage() {
           </div>
         </Card>
 
-        <Card className="p-4 sm:p-6">
+        <Card className="p-4 sm:p-6 animate-slide-in-top" style={{ animationDelay: '500ms' }}>
           <div className="flex items-center gap-3 mb-2">
             <CheckCircle2 className="w-5 h-5 text-green-600" />
             <span className="text-sm text-gray-600">Missions Completed</span>
@@ -84,7 +84,7 @@ export function DashboardPage() {
           </div>
         </Card>
 
-        <Card className="p-4 sm:p-6">
+        <Card className="p-4 sm:p-6 animate-slide-in-right" style={{ animationDelay: '250ms' }}>
           <div className="flex items-center gap-3 mb-2">
             <TrendingUp className="w-5 h-5 text-orange-500" />
             <span className="text-sm text-gray-600">Current Streak</span>
@@ -96,7 +96,7 @@ export function DashboardPage() {
       </div>
 
       {/* Goals Overview */}
-      <Card className="p-4 sm:p-6">
+      <Card className="p-4 sm:p-6 animate-slide-in-bottom" style={{ animationDelay: '750ms' }}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-[#1e3a5f]">Your Goals</h2>
           <Link to="/goals">
@@ -136,48 +136,10 @@ export function DashboardPage() {
         )}
       </Card>
 
-      {/* Active Missions */}
-      <Card className="p-4 sm:p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-[#1e3a5f]">
-            Active Missions
-          </h2>
-        </div>
-
-        {missions.length === 0 ? (
-          <div className="text-center py-8">
-            <CheckCircle2 className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">No active missions</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {missions
-              .filter((m) => m.status === "active")
-              .slice(0, 3)
-              .map((mission) => (
-                <div
-                  key={mission.mission_id}
-                  className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
-                >
-                  <div className="flex-1">
-                    <div className="font-medium">{mission.title}</div>
-                    <div className="text-sm text-gray-500">
-                      {mission.description}
-                    </div>
-                  </div>
-                  <div className="text-sm text-[#1e3a5f] font-medium">
-                    +{mission.points} pts
-                  </div>
-                </div>
-              ))}
-          </div>
-        )}
-      </Card>
-
       {/* Quick Actions */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Link to="/credit">
-          <Card className="p-4 sm:p-6 hover:shadow-md transition-shadow cursor-pointer">
+          <Card className="p-4 sm:p-6 hover:shadow-md transition-shadow cursor-pointer animate-slide-in-left" style={{ animationDelay: '500ms' }}>
             <div className="flex items-center gap-3">
               <div className="p-3 bg-blue-100 rounded-lg">
                 <CreditCard className="w-6 h-6 text-blue-600" />
@@ -193,7 +155,7 @@ export function DashboardPage() {
         </Link>
 
         <Link to="/budget">
-          <Card className="p-4 sm:p-6 hover:shadow-md transition-shadow cursor-pointer">
+          <Card className="p-4 sm:p-6 hover:shadow-md transition-shadow cursor-pointer animate-slide-in-right" style={{ animationDelay: '600ms' }}>
             <div className="flex items-center gap-3">
               <div className="p-3 bg-green-100 rounded-lg">
                 <TrendingUp className="w-6 h-6 text-green-600" />
@@ -208,6 +170,101 @@ export function DashboardPage() {
           </Card>
         </Link>
       </div>
+
+      {/* Animation Styles */}
+      <style>{`
+        @keyframes slideInLeft {
+          0% {
+            opacity: 0;
+            transform: translateX(-100px);
+          }
+          60% {
+            opacity: 1;
+            transform: translateX(10px);
+          }
+          80% {
+            transform: translateX(-5px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+        
+        @keyframes slideInRight {
+          0% {
+            opacity: 0;
+            transform: translateX(100px);
+          }
+          60% {
+            opacity: 1;
+            transform: translateX(-10px);
+          }
+          80% {
+            transform: translateX(5px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+        
+        @keyframes slideInTop {
+          0% {
+            opacity: 0;
+            transform: translateY(-100px);
+          }
+          60% {
+            opacity: 1;
+            transform: translateY(10px);
+          }
+          80% {
+            transform: translateY(-5px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        @keyframes slideInBottom {
+          0% {
+            opacity: 0;
+            transform: translateY(100px);
+          }
+          60% {
+            opacity: 1;
+            transform: translateY(-10px);
+          }
+          80% {
+            transform: translateY(5px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        .animate-slide-in-left {
+          animation: slideInLeft 0.6s ease-out forwards;
+          opacity: 0;
+        }
+        
+        .animate-slide-in-right {
+          animation: slideInRight 0.6s ease-out forwards;
+          opacity: 0;
+        }
+        
+        .animate-slide-in-top {
+          animation: slideInTop 0.6s ease-out forwards;
+          opacity: 0;
+        }
+        
+        .animate-slide-in-bottom {
+          animation: slideInBottom 0.6s ease-out forwards;
+          opacity: 0;
+        }
+      `}</style>
     </div>
   );
 }

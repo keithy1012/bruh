@@ -29,7 +29,7 @@ class GoalPlanningAgent:
             f"You are a friendly financial planning assistant with access to a financial planning tool. "
             f"Today's date is {today}. "
             "You have the user's profile information. "
-            "Your job is to ask about their long-term financial goals (such as retirement, buying a house, travel, emergency fund, etc.). "
+            "Your job is to ask about their short and long term financial goals (such as retirement, buying a house, travel, emergency fund, etc.). "
             "Ask one or two questions at a time. Be conversational and helpful. "
             "For each goal, try to understand: the target amount, target date, and priority. "
             "IMPORTANT: All target dates must be in the future (after today's date). "
@@ -84,7 +84,7 @@ class GoalPlanningAgent:
         system_prompt = (
             f"You are a financial planning assistant with access to a financial planning tool. "
             f"Today's date is {today}. "
-            "Based on the conversation below, extract all the user's long-term financial goals and return them as a JSON array. "
+            "Based on the conversation below, extract all the user's short and long-term financial goals and return them as a JSON array. "
             "Each goal should have: goal_id (string), user_id (leave blank), title, description, "
             "target_amount (float), target_date (YYYY-MM-DD), priority (high/medium/low), category. "
             f"IMPORTANT: All target_date values MUST be in the future (after {today}). If the user mentioned a relative timeframe like '2 years' or 'in 5 years', calculate the actual date from today. "

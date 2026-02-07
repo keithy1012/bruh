@@ -93,8 +93,11 @@ export function GoalsPage() {
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      {/* Header - Fade in from top */}
+      <div 
+        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-fade-in-down"
+        style={{ animationDelay: '0ms' }}
+      >
         <div>
           <h1 className="text-2xl sm:text-3xl text-[#1e3a5f] mb-2">Your Financial Goals</h1>
           <p className="text-sm sm:text-base text-gray-600">Track and achieve your financial dreams</p>
@@ -109,9 +112,9 @@ export function GoalsPage() {
         </Button>
       </div>
 
-      {/* Empty State */}
+      {/* Empty State - Fade in */}
       {goals.length === 0 && (
-        <Card className="p-8 text-center">
+        <Card className="p-8 text-center animate-fade-in-up" style={{ animationDelay: '150ms' }}>
           <Target className="w-12 h-12 mx-auto text-gray-400 mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No goals yet</h3>
           <p className="text-gray-600 mb-4">Start by adding your first financial goal</p>
@@ -125,15 +128,19 @@ export function GoalsPage() {
         </Card>
       )}
 
-      {/* Goals Grid */}
+      {/* Goals Grid - Staggered fade in */}
       {goals.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {goals.map((goal) => {
+          {goals.map((goal, index) => {
             const currentAmount = goal.current_amount || 0;
             const progress = (currentAmount / goal.target_amount) * 100;
             
             return (
-              <Card key={goal.goal_id} className="p-4 sm:p-6 hover:shadow-lg transition-shadow border-2 border-gray-100 cursor-pointer group">
+              <Card 
+                key={goal.goal_id} 
+                className="p-4 sm:p-6 hover:shadow-lg transition-all border-2 border-gray-100 cursor-pointer group animate-fade-in-up hover:scale-[1.02]"
+                style={{ animationDelay: `${100 + index * 75}ms` }}
+              >
                 <div className="space-y-3 sm:space-y-4">
                   {/* Clickable area for navigation */}
                   <div 
@@ -216,13 +223,51 @@ export function GoalsPage() {
         </div>
       )}
 
-      {/* Roadmap Section */}
+      {/* Roadmap Section - Fade in from bottom */}
       {roadmapGoals.length > 0 && (
-        <div className="mt-8 sm:mt-12">
+        <div 
+          className="mt-8 sm:mt-12 animate-fade-in-up"
+          style={{ animationDelay: `${100 + goals.length * 75 + 100}ms` }}
+        >
           <h2 className="text-xl sm:text-2xl text-[#1e3a5f] mb-4 sm:mb-6">Your Financial Roadmap</h2>
           <Roadmap goals={roadmapGoals} />
         </div>
       )}
+
+      {/* Animation Styles */}
+      <style>{`
+        @keyframes fadeInDown {
+          from {
+            opacity: 0;
+            transform: translateY(-20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        .animate-fade-in-down {
+          animation: fadeInDown 0.5s ease-out forwards;
+          opacity: 0;
+        }
+        
+        .animate-fade-in-up {
+          animation: fadeInUp 0.5s ease-out forwards;
+          opacity: 0;
+        }
+      `}</style>
     </div>
   );
 }

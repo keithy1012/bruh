@@ -69,11 +69,37 @@ export function CreditChatPage() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isFinalizing, setIsFinalizing] = useState(false);
+  const [showTransition, setShowTransition] = useState(false);
+  const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
   const [creditStack, setCreditStack] = useState<CreditCardStack | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [initialized, setInitialized] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+
+  // Rotating loading messages for finalize
+  const loadingMessages = [
+    "Building your optimal credit stack...",
+    "Analyzing your spending patterns...",
+    "Matching cards to your lifestyle...",
+    "Calculating maximum rewards potential...",
+    "Finding the best sign-up bonuses...",
+    "Finalizing your recommendations...",
+  ];
+
+  // Rotate loading messages while finalizing
+  useEffect(() => {
+    if (!showTransition) {
+      setLoadingMessageIndex(0);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setLoadingMessageIndex((prev) => (prev + 1) % loadingMessages.length);
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [showTransition, loadingMessages.length]);
 
   const scrollToBottom = () => {
     // Only scroll within the messages container, not the whole page
@@ -153,13 +179,19 @@ export function CreditChatPage() {
 
   const handleFinalize = async () => {
     if (!userId) return;
+    setShowTransition(true);
     setIsFinalizing(true);
 
     try {
       const result = await finalizeCreditStack(userId);
-      setCreditStack(result);
+      // Small delay to let the animation complete
+      setTimeout(() => {
+        setCreditStack(result);
+        setShowTransition(false);
+      }, 500);
     } catch (error) {
       console.error("Failed to finalize credit stack:", error);
+      setShowTransition(false);
     } finally {
       setIsFinalizing(false);
     }
@@ -442,6 +474,65 @@ export function CreditChatPage() {
           ))}
         </div>
       </Card>
+
+      {/* Fullscreen Transition Overlay */}
+      {showTransition && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-[#1e3a5f] animate-expand-screen" />
+          <div className="relative z-10 text-center animate-fade-in-delayed">
+            <Loader2 className="w-16 h-16 animate-spin text-white mx-auto mb-6" />
+            <h2 className="text-4xl font-bold text-white mb-4">Finalizing...</h2>
+            <p 
+              key={loadingMessageIndex}
+              className="text-white text-lg animate-fade-message"
+            >
+              {loadingMessages[loadingMessageIndex]}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Animation Styles */}
+      <style>{`
+        @keyframes expandScreen {
+          0% {
+            clip-path: circle(0% at 50% 100%);
+          }
+          100% {
+            clip-path: circle(150% at 50% 100%);
+          }
+        }
+        
+        @keyframes fadeInDelayed {
+          0%, 30% {
+            opacity: 0;
+            transform: scale(0.9);
+          }
+          100% {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+        
+        @keyframes fadeMessage {
+          0% { opacity: 0; transform: translateY(10px); }
+          15% { opacity: 1; transform: translateY(0); }
+          85% { opacity: 1; transform: translateY(0); }
+          100% { opacity: 0; transform: translateY(-10px); }
+        }
+        
+        .animate-expand-screen {
+          animation: expandScreen 0.6s ease-out forwards;
+        }
+        
+        .animate-fade-in-delayed {
+          animation: fadeInDelayed 0.8s ease-out forwards;
+        }
+        
+        .animate-fade-message {
+          animation: fadeMessage 2s ease-in-out;
+        }
+      `}</style>
     </div>
   );
 }

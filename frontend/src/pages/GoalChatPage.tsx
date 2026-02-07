@@ -12,11 +12,37 @@ export function GoalChatPage() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isFinalizing, setIsFinalizing] = useState(false);
+  const [showTransition, setShowTransition] = useState(false);
+  const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
   const [goals, setGoals] = useState<FinancialGoal[] | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [initialized, setInitialized] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const finalizeButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Rotating loading messages for finalize
+  const loadingMessages = [
+    "Creating your personalized goals...",
+    "Analyzing your financial aspirations...",
+    "Calculating optimal timelines...",
+    "Prioritizing your objectives...",
+    "Almost there! Saving your roadmap...",
+  ];
+
+  // Rotate loading messages while finalizing
+  useEffect(() => {
+    if (!showTransition) {
+      setLoadingMessageIndex(0);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setLoadingMessageIndex((prev) => (prev + 1) % loadingMessages.length);
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [showTransition, loadingMessages.length]);
 
   const scrollToBottom = () => {
     if (messagesContainerRef.current) {
@@ -91,13 +117,19 @@ export function GoalChatPage() {
 
   const handleFinalize = async () => {
     if (!userId) return;
+    setShowTransition(true);
     setIsFinalizing(true);
 
     try {
       const result = await api.finalizeGoals(userId);
-      setGoals(result.goals);
+      // Small delay to let the animation complete
+      setTimeout(() => {
+        setGoals(result.goals);
+        setShowTransition(false);
+      }, 500);
     } catch (error) {
       console.error("Failed to finalize goals:", error);
+      setShowTransition(false);
     } finally {
       setIsFinalizing(false);
     }
@@ -240,6 +272,7 @@ export function GoalChatPage() {
           </div>
           <div className="mt-4 flex justify-center">
             <Button
+              ref={finalizeButtonRef}
               onClick={handleFinalize}
               disabled={isFinalizing}
               className="bg-[#1e3a5f] hover:bg-[#2d4f7f] text-white text-lg h-14 w-48"
@@ -256,6 +289,65 @@ export function GoalChatPage() {
           </div>
         </div>
       </div>
+
+      {/* Fullscreen Transition Overlay */}
+      {showTransition && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-[#1e3a5f] animate-expand-screen" />
+          <div className="relative z-10 text-center animate-fade-in-delayed">
+            <Loader2 className="w-16 h-16 animate-spin text-white mx-auto mb-6" />
+            <h2 className="text-4xl font-bold text-white mb-4">Finalizing...</h2>
+            <p 
+              key={loadingMessageIndex}
+              className="text-white text-lg animate-fade-message"
+            >
+              {loadingMessages[loadingMessageIndex]}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Animation Styles */}
+      <style>{`
+        @keyframes expandScreen {
+          0% {
+            clip-path: circle(0% at 50% 100%);
+          }
+          100% {
+            clip-path: circle(150% at 50% 100%);
+          }
+        }
+        
+        @keyframes fadeInDelayed {
+          0%, 30% {
+            opacity: 0;
+            transform: scale(0.9);
+          }
+          100% {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+        
+        @keyframes fadeMessage {
+          0% { opacity: 0; transform: translateY(10px); }
+          15% { opacity: 1; transform: translateY(0); }
+          85% { opacity: 1; transform: translateY(0); }
+          100% { opacity: 0; transform: translateY(-10px); }
+        }
+        
+        .animate-expand-screen {
+          animation: expandScreen 0.6s ease-out forwards;
+        }
+        
+        .animate-fade-in-delayed {
+          animation: fadeInDelayed 0.8s ease-out forwards;
+        }
+        
+        .animate-fade-message {
+          animation: fadeMessage 2s ease-in-out;
+        }
+      `}</style>
     </div>
   );
 }

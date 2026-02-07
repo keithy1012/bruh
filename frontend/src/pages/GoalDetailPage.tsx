@@ -15,6 +15,7 @@ import {
   TrendingDown,
   Zap,
   BarChart3,
+  Plus,
 } from "lucide-react";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -48,7 +49,35 @@ export function GoalDetailPage() {
   const [missions, setMissions] = useState<Mission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [showSavingsModal, setShowSavingsModal] = useState(false);
+  const [savingsInput, setSavingsInput] = useState("");
+  const [isUpdatingSavings, setIsUpdatingSavings] = useState(false);
+
+  // Rotating loading messages
+  const loadingMessages = [
+    "Our AI is designing personalized missions to help you reach your goal...",
+    "Analyzing your financial profile and timeline...",
+    "Crafting actionable steps tailored just for you...",
+    "Optimizing mission difficulty and rewards...",
+    "Almost there! Finalizing your roadmap...",
+    "Adding the finishing touches...",
+  ];
+
+  // Rotate loading messages while generating
+  useEffect(() => {
+    if (!isGenerating) {
+      setLoadingMessageIndex(0);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setLoadingMessageIndex((prev) => (prev + 1) % loadingMessages.length);
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, [isGenerating, loadingMessages.length]);
 
   // Fetch goal and missions
   useEffect(() => {
@@ -119,6 +148,27 @@ export function GoalDetailPage() {
   const missionProgress = missions.length > 0 
     ? (completedMissions / missions.length) * 100 
     : 0;
+
+  const handleAddSavings = async () => {
+    if (!userId || !goalId || !goal) return;
+    
+    const amountToAdd = parseFloat(savingsInput);
+    if (isNaN(amountToAdd) || amountToAdd <= 0) return;
+
+    const newTotal = (goal.current_amount || 0) + amountToAdd;
+
+    setIsUpdatingSavings(true);
+    try {
+      const response = await api.updateGoal(userId, goalId, { current_amount: newTotal });
+      setGoal(response.goal);
+      setShowSavingsModal(false);
+      setSavingsInput("");
+    } catch (err) {
+      console.error("Failed to update savings:", err);
+    } finally {
+      setIsUpdatingSavings(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -198,6 +248,17 @@ export function GoalDetailPage() {
               <Progress value={missionProgress} className="h-2 bg-white/20" />
             </div>
           )}
+          {/* Add Savings Button */}
+          <Button
+            onClick={() => {
+              setSavingsInput("");
+              setShowSavingsModal(true);
+            }}
+            className="w-full mt-2 bg-white/20 hover:bg-white/30 text-white border-0"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Savings
+          </Button>
         </div>
 
         {/* Stats */}
@@ -306,10 +367,23 @@ export function GoalDetailPage() {
             <h3 className="text-lg font-medium text-gray-900 mb-2">
               Creating Your Mission Roadmap
             </h3>
-            <p className="text-gray-600">
-              Our AI is designing personalized missions to help you reach your
-              goal...
+            <p 
+              key={loadingMessageIndex}
+              className="text-gray-600 animate-fade-message"
+            >
+              {loadingMessages[loadingMessageIndex]}
             </p>
+            <style>{`
+              @keyframes fadeMessage {
+                0% { opacity: 0; transform: translateY(10px); }
+                15% { opacity: 1; transform: translateY(0); }
+                85% { opacity: 1; transform: translateY(0); }
+                100% { opacity: 0; transform: translateY(-10px); }
+              }
+              .animate-fade-message {
+                animation: fadeMessage 3.5s ease-in-out;
+              }
+            `}</style>
           </Card>
         )}
 
@@ -438,6 +512,63 @@ export function GoalDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Savings Update Modal */}
+      {showSavingsModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-bold text-[#1e3a5f] mb-4">
+              Add to Your Savings
+            </h3>
+            <p className="text-gray-600 text-sm mb-4">
+              How much more have you saved towards "{goal.title}"?
+            </p>
+            <p className="text-sm text-gray-500 mb-2">
+              Current savings: <span className="font-medium text-[#1e3a5f]">${currentAmount.toLocaleString()}</span>
+            </p>
+            <div className="flex items-center mb-4">
+              <span className="px-3 py-3 bg-gray-100 border border-r-0 border-gray-300 rounded-l-lg text-gray-500">
+                $
+              </span>
+              <input
+                type="number"
+                value={savingsInput}
+                onChange={(e) => setSavingsInput(e.target.value)}
+                placeholder="0.00"
+                min="0"
+                className="w-full px-4 py-3 border border-gray-300 rounded-r-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-transparent outline-none"
+                autoFocus
+              />
+            </div>
+            <p className="text-xs text-gray-500 mb-4">
+              Target: ${goal.target_amount.toLocaleString()} • Remaining: ${Math.max(0, goal.target_amount - currentAmount).toLocaleString()}
+            </p>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowSavingsModal(false);
+                  setSavingsInput("");
+                }}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleAddSavings}
+                disabled={isUpdatingSavings || !savingsInput || parseFloat(savingsInput) <= 0}
+                className="flex-1 bg-[#1e3a5f] hover:bg-[#2d4f7f] text-white"
+              >
+                {isUpdatingSavings ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  "Add Savings"
+                )}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

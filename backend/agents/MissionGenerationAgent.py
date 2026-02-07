@@ -41,20 +41,21 @@ class MissionGenerationAgent:
             days_until_goal = 30  # Default to 30 days if goal is past or today
         
         # Determine mission frequency based on goal timeline
-        if days_until_goal <= 30:
-            mission_interval_days = 3  # Every 3 days for short-term goals
-            num_missions = min(10, days_until_goal // 3)
-        elif days_until_goal <= 90:
+        if days_until_goal <= 90:
             mission_interval_days = 7  # Weekly for medium-term goals
             num_missions = min(12, days_until_goal // 7)
         elif days_until_goal <= 365:
             mission_interval_days = 14  # Bi-weekly for longer goals
             num_missions = min(20, days_until_goal // 14)
-        else:
-            mission_interval_days = 30  # Monthly for very long-term goals
+        elif days_until_goal <= 720:
+            mission_interval_days = 30  # Monthly for 2-year goals
             num_missions = min(24, days_until_goal // 30)
+        else:
+            mission_interval_days = 180  #
+            num_missions = min(24, days_until_goal // 180)
         
         num_missions = max(5, num_missions)  # At least 5 missions
+        num_missions = min(30, num_missions) # At most 20
         
         # Calculate monthly savings needed
         months_until_goal = max(1, days_until_goal / 30)

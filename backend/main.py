@@ -399,19 +399,45 @@ async def complete_mission(mission_id: str, user_id: str):
     
     mission.status = "completed"
     
-
-
-    
     return {
         "mission": mission,
     }
 
-@app.get("/api/social/feed")
-async def get_social_feed(limit: int = 20):
+
+@app.get("/api/dashboard/{user_id}")
+async def get_dashboard(user_id: str):
     """
-    Get recent social feed activities
+    Get dashboard data including aggregated missions from all goals
     """
-    return {"feed": social_feed[-limit:]}
+    if user_id not in users_db:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    user_profile = users_db[user_id]
+    goals = goals_db.get(user_id, [])
+    
+    # Aggregate all missions from all goals
+    all_missions = []
+    if user_id in missions_db:
+        for goal_id, goal_missions in missions_db[user_id].items():
+            all_missions.extend(goal_missions)
+    
+    # Count completed missions
+    completed_count = sum(1 for m in all_missions if m.status == "completed")
+    
+    # Simple streak calculation (could be more sophisticated)
+    streak = {
+        "current_streak": 0,
+        "total_missions_completed": completed_count,
+        "longest_streak": 0
+    }
+    
+    return {
+        "user_profile": user_profile,
+        "goals": goals,
+        "missions": all_missions,
+        "streak": streak,
+        "spending_summary": {}
+    }
 
 
 if __name__ == "__main__":
