@@ -45,6 +45,7 @@ missions_db: Dict[str, List[Mission]] = {}
 social_feed: List[SocialFeed] = []
 spending_reports_db: Dict[str, SpendingReport] = {}  
 
+
 class OnboardRequest(BaseModel):
     age: int
     annual_income: float
@@ -418,14 +419,25 @@ async def get_credit_conversation(user_id: str):
 async def credit_optimization_chat(user_id: str, request: CreditChatRequest = CreditChatRequest()):
     """
     Chat with Credit Optimization Agent to learn about lifestyle and recommend credit cards.
-    Pass message=None to start a new conversation.
+    Now uses actual spending data from CSV if available.
     """
     if user_id not in users_db:
         raise HTTPException(status_code=404, detail="User not found")
     user_profile = users_db[user_id]
     goals = goals_db.get(user_id, [])
     conversation_history = credit_conversations_db.get(user_id, [])
-    result = await CreditOptimizationAgent.chat(user_profile, goals, conversation_history, request.message)
+    
+    # Get spending report if available
+    spending_report = spending_reports_db.get(user_id)
+    
+    # Pass spending report to the agent
+    result = await CreditOptimizationAgent.chat(
+        user_profile, 
+        goals, 
+        conversation_history, 
+        request.message,
+        spending_report=spending_report
+    )
     credit_conversations_db[user_id] = result["conversation_history"]
     return result
 
@@ -433,7 +445,7 @@ async def credit_optimization_chat(user_id: str, request: CreditChatRequest = Cr
 async def credit_optimization_finalize(user_id: str):
     """
     Finalize credit card stack recommendation after chatting.
-    Saves the finalized stack for persistence.
+    Uses actual spending data from CSV if available for precise recommendations.
     """
     if user_id not in users_db:
         raise HTTPException(status_code=404, detail="User not found")
@@ -442,9 +454,17 @@ async def credit_optimization_finalize(user_id: str):
     conversation_history = credit_conversations_db.get(user_id, [])
     if not conversation_history:
         raise HTTPException(status_code=400, detail="No conversation history found. Please chat first.")
-    result = await CreditOptimizationAgent.finalize_stack(user_profile, goals, conversation_history)
-    # Save the finalized stack for persistence
-    credit_stacks_db[user_id] = result
+    
+    # Get spending report if available
+    spending_report = spending_reports_db.get(user_id)
+    
+    # Pass spending report to the agent
+    result = await CreditOptimizationAgent.finalize_stack(
+        user_profile, 
+        goals, 
+        conversation_history,
+        spending_report=spending_report
+    )
     return result
 
 @app.get("/api/credit/paths/{user_id}")
