@@ -149,7 +149,7 @@ export function GoalChatPage() {
           <div className="flex items-center gap-3 mb-6">
             <CheckCircle2 className="w-8 h-8 text-green-500" />
             <h2 className="text-2xl font-semibold text-gray-900">
-              Your Financial Goals
+              Your Financial Trees
             </h2>
           </div>
 
@@ -203,7 +203,7 @@ export function GoalChatPage() {
             Goal Planning Assistant
           </h2>
           <p className="text-sm text-gray-500">
-            Let's discuss your financial goals
+            Plant a financial tree that you want to tackle!
           </p>
         </div>
 

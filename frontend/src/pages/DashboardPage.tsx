@@ -99,7 +99,7 @@ export function DashboardPage() {
       {/* Goals Overview */}
       <Card className="p-4 sm:p-6 animate-slide-in-bottom" style={{ animationDelay: '750ms' }}>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-[#1e3a5f]">Your Goals</h2>
+          <h2 className="text-lg font-semibold text-[#1e3a5f]">Your Financial Trees</h2>
           <Link to="/goals">
             <Button variant="ghost" size="sm">
               View All

@@ -105,7 +105,7 @@ export function OnboardingPage() {
             <Wallet className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-[#1e3a5f]">
-            Welcome to MoneyMap
+            Welcome to MoneyTree
           </h1>
           <p className="text-gray-600 mt-2">
             Let's get started with your financial journey

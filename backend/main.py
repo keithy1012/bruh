@@ -228,7 +228,7 @@ async def goal_planning_chat(user_id: str, request: GoalChatRequest = GoalChatRe
 async def finalize_goals(user_id: str):
     """
     Finalize goals after conversation with Goal Planning Agent.
-    Extracts goals from conversation and saves them.
+    Extracts goals from conversation and appends them to existing goals.
     """
     if user_id not in users_db:
         raise HTTPException(status_code=404, detail="User not found")
@@ -236,17 +236,22 @@ async def finalize_goals(user_id: str):
         raise HTTPException(status_code=400, detail="No conversation history found. Please chat first.")
     
     conversation_history = goal_conversations_db[user_id]
-    goals = await GoalPlanningAgent.finalize_goals(conversation_history)
+    new_goals = await GoalPlanningAgent.finalize_goals(conversation_history)
     
     # Clear conversation history after finalizing
     goal_conversations_db[user_id] = []
     
     # Assign user_id to each goal
-    for goal in goals:
+    for goal in new_goals:
         goal.user_id = user_id
-    goals_db[user_id] = goals
+    
+    # Append new goals to existing goals instead of replacing
+    existing_goals = goals_db.get(user_id, [])
+    existing_goals.extend(new_goals)
+    goals_db[user_id] = existing_goals
+    
     return {
-        "goals": goals,
+        "goals": existing_goals,
         "message": "Goals saved successfully"
     }
 
