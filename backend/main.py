@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Form
+from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Form, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional, Dict, Any
 from datetime import datetime, date
@@ -41,7 +41,7 @@ app.add_middleware(
 users_db: Dict[str, UserProfile] = {}
 goals_db: Dict[str, List[FinancialGoal]] = {}
 statements_db: Dict[str, ParsedStatement] = {}
-missions_db: Dict[str, List[Mission]] = {}
+missions_db: Dict[str, Dict[str, List[Mission]]] = {}  # user_id -> goal_id -> missions
 social_feed: List[SocialFeed] = []
 spending_reports_db: Dict[str, SpendingReport] = {}  
 
@@ -61,6 +61,7 @@ async def onboard_user(
     """
     Initial user onboarding: basic info (age, income, debts) + optional CSV upload
     Accepts both FormData (with CSV) and JSON (without CSV) for backward compatibility
+    CSV parsing runs in the background for faster onboarding.
     """
     user_id = f"user_{datetime.now().timestamp()}"
     
@@ -79,31 +80,32 @@ async def onboard_user(
     )
     users_db[user_id] = user_profile
 
-    # Process CSV if uploaded
-    spending_report = None
+    # Process CSV in background if uploaded
+    has_csv = False
     if transactions_csv:
-        try:
-            # Read file content
-            file_content = await transactions_csv.read()
-            
-            # Parse CSV using the agent
-            spending_report = await StatementParsingAgent.parse_csv_statement(
-                file_content, 
-                user_id
-            )
-            
-            # Store spending report
-            spending_reports_db[user_id] = spending_report
-        except Exception as e:
-            # Log error but don't fail onboarding
-            print(f"Error processing CSV: {str(e)}")
-            # Optionally return a warning in the response
+        has_csv = True
+        # Read file content before starting background task
+        file_content = await transactions_csv.read()
+        
+        # Parse CSV in background
+        async def parse_csv_background():
+            try:
+                spending_report = await StatementParsingAgent.parse_csv_statement(
+                    file_content, 
+                    user_id
+                )
+                spending_reports_db[user_id] = spending_report
+                print(f"Successfully parsed CSV for user {user_id}")
+            except Exception as e:
+                print(f"Error processing CSV: {str(e)}")
+        
+        asyncio.create_task(parse_csv_background())
 
     return {
         "user_id": user_id,
         "message": "Onboarding successful",
         "next_step": "goal_planning",
-        "has_spending_data": spending_report is not None
+        "has_spending_data": has_csv  # Indicates CSV was uploaded, parsing in progress
     }
 
 @app.get("/api/budget/{user_id}")
@@ -228,7 +230,8 @@ async def goal_planning_chat(user_id: str, request: GoalChatRequest = GoalChatRe
 async def finalize_goals(user_id: str):
     """
     Finalize goals after conversation with Goal Planning Agent.
-    Extracts goals from conversation and appends them to existing goals.
+    Extracts goals from conversation, appends them to existing goals,
+    and starts mission generation in the background.
     """
     if user_id not in users_db:
         raise HTTPException(status_code=404, detail="User not found")
@@ -241,14 +244,32 @@ async def finalize_goals(user_id: str):
     # Clear conversation history after finalizing
     goal_conversations_db[user_id] = []
     
+    user_profile = users_db[user_id]
+    
     # Assign user_id to each goal
     for goal in new_goals:
         goal.user_id = user_id
     
-    # Append new goals to existing goals instead of replacing
+    # Append new goals to existing goals
     existing_goals = goals_db.get(user_id, [])
     existing_goals.extend(new_goals)
     goals_db[user_id] = existing_goals
+    
+    # Start mission generation in background for each new goal
+    async def generate_missions_background():
+        for goal in new_goals:
+            try:
+                missions = await MissionGenerationAgent.generate_mission_roadmap(user_profile, goal)
+                # Store missions
+                if user_id not in missions_db:
+                    missions_db[user_id] = {}
+                missions_db[user_id][goal.goal_id] = missions
+                print(f"Successfully generated {len(missions)} missions for goal {goal.goal_id}")
+            except Exception as e:
+                print(f"Error generating missions for goal {goal.goal_id}: {e}")
+    
+    # Run mission generation in background
+    asyncio.create_task(generate_missions_background())
     
     return {
         "goals": existing_goals,
@@ -306,9 +327,6 @@ async def delete_goal(user_id: str, goal_id: str):
     
     goals_db[user_id] = [g for g in goals if g.goal_id != goal_id]
     return {"message": "Goal deleted successfully"}
-
-# In-memory storage for generated missions per goal
-missions_db: Dict[str, Dict[str, List[Mission]]] = {}  # user_id -> goal_id -> missions
 
 @app.get("/api/goals/{user_id}/{goal_id}")
 async def get_goal_detail(user_id: str, goal_id: str):
@@ -508,30 +526,18 @@ async def get_spending_report(user_id: str):
 @app.get("/api/missions/{user_id}")
 async def get_missions(user_id: str):
     """
-    Get active missions for user
+    Get all missions for user (aggregated from all goals)
     """
     if user_id not in users_db:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Check if missions already exist
-    if user_id not in missions_db:
-        user_profile = users_db[user_id]
-        goals = goals_db.get(user_id, [])
-        '''
-        # Need spending report for mission generation
-        if user_id in statements_db:
-            parsed_statement = statements_db[user_id]
-            spending_report = await SpendingAnalysisAgent.analyze_spending(parsed_statement)
-            missions = await MissionGenerationAgent.generate_missions(
-                user_profile,
-                goals,
-                spending_report
-            )
-            missions_db[user_id] = missions
-        else:
-            return {"missions": []}
-        '''
-    return {"missions": missions_db[user_id]}
+    # Aggregate all missions from all goals
+    all_missions = []
+    if user_id in missions_db:
+        for goal_id, goal_missions in missions_db[user_id].items():
+            all_missions.extend(goal_missions)
+    
+    return {"missions": all_missions}
 
 @app.post("/api/missions/{mission_id}/complete")
 async def complete_mission(mission_id: str, user_id: str):
@@ -541,8 +547,12 @@ async def complete_mission(mission_id: str, user_id: str):
     if user_id not in missions_db:
         raise HTTPException(status_code=404, detail="No missions found")
     
-    missions = missions_db[user_id]
-    mission = next((m for m in missions if m.mission_id == mission_id), None)
+    # Search through all goals' missions
+    mission = None
+    for goal_id, goal_missions in missions_db[user_id].items():
+        mission = next((m for m in goal_missions if m.mission_id == mission_id), None)
+        if mission:
+            break
     
     if not mission:
         raise HTTPException(status_code=404, detail="Mission not found")
@@ -570,16 +580,11 @@ async def get_dashboard(user_id: str):
     apples_collected = 0  # Count goals with all missions completed
     
     if user_id in missions_db:
-        user_missions = missions_db[user_id]
-        # Check if it's a nested dict (goal_id -> missions) or flat list
-        if isinstance(user_missions, dict):
-            for goal_id, goal_missions in user_missions.items():
-                all_missions.extend(goal_missions)
-                # Check if all missions for this goal are completed
-                if goal_missions and all(m.status == "completed" for m in goal_missions):
-                    apples_collected += 1
-        elif isinstance(user_missions, list):
-            all_missions.extend(user_missions)
+        for goal_id, goal_missions in missions_db[user_id].items():
+            all_missions.extend(goal_missions)
+            # Check if all missions for this goal are completed
+            if goal_missions and all(m.status == "completed" for m in goal_missions):
+                apples_collected += 1
     
     # Count completed missions
     completed_count = sum(1 for m in all_missions if m.status == "completed")

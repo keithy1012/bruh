@@ -98,7 +98,21 @@ export function GoalDetailPage() {
 
         // Fetch existing missions
         const missionsResponse = await api.getGoalMissions(userId, goalId);
-        setMissions(missionsResponse.missions || []);
+        const fetchedMissions = missionsResponse.missions || [];
+        setMissions(fetchedMissions);
+        
+        // If no missions exist, auto-generate them
+        if (fetchedMissions.length === 0) {
+          setIsGenerating(true);
+          try {
+            const genResponse = await api.generateGoalMissions(userId, goalId);
+            setMissions(genResponse.missions || []);
+          } catch (genErr) {
+            console.error("Failed to auto-generate missions:", genErr);
+          } finally {
+            setIsGenerating(false);
+          }
+        }
       } catch (err: any) {
         if (err.message?.includes("404")) {
           navigate("/goals");
@@ -113,21 +127,6 @@ export function GoalDetailPage() {
 
     fetchData();
   }, [userId, goalId, navigate]);
-
-  const handleGenerateMissions = async () => {
-    if (!userId || !goalId) return;
-
-    setIsGenerating(true);
-    try {
-      const response = await api.generateGoalMissions(userId, goalId);
-      setMissions(response.missions || []);
-    } catch (err) {
-      console.error("Failed to generate missions:", err);
-      setError("Failed to generate missions. Please try again.");
-    } finally {
-      setIsGenerating(false);
-    }
-  };
 
   const handleToggleMission = async (mission: Mission) => {
     if (!userId || !goalId) return;
@@ -451,66 +450,18 @@ export function GoalDetailPage() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold text-[#1e3a5f]">Mission Roadmap</h2>
-          {missions.length === 0 && (
-            <Button
-              onClick={handleGenerateMissions}
-              disabled={isGenerating}
-              className="bg-[#1e3a5f] hover:bg-[#2d4f7f] text-white"
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Generate Missions
-                </>
-              )}
-            </Button>
-          )}
-          {missions.length > 0 && (
-            <Button
-              onClick={handleGenerateMissions}
-              disabled={isGenerating}
-              variant="outline"
-              className="border-[#1e3a5f] text-[#1e3a5f]"
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  Regenerating...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Regenerate
-                </>
-              )}
-            </Button>
-          )}
         </div>
 
-        {/* No Missions State */}
+        {/* No Missions State - Show loading hint since missions are auto-generated */}
         {missions.length === 0 && !isGenerating && (
           <Card className="p-8 text-center">
-            <Sparkles className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+            <Loader2 className="w-12 h-12 mx-auto text-gray-400 mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              No missions yet
+              Loading missions...
             </h3>
-            <p className="text-gray-600 mb-4">
-              Generate a personalized roadmap of missions to help you achieve
-              this goal
+            <p className="text-gray-600">
+              Your personalized mission roadmap is being prepared
             </p>
-            <Button
-              onClick={handleGenerateMissions}
-              disabled={isGenerating}
-              className="bg-[#1e3a5f] hover:bg-[#2d4f7f] text-white"
-            >
-              <Sparkles className="w-4 h-4 mr-2" />
-              Generate Mission Roadmap
-            </Button>
           </Card>
         )}
 

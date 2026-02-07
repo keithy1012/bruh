@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   ArrowRight,
   Apple,
+  TreePalm
 } from "lucide-react";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -87,7 +88,7 @@ export function DashboardPage() {
 
         <Card className="p-4 sm:p-6 animate-slide-in-right" style={{ animationDelay: '250ms' }}>
           <div className="flex items-center gap-3 mb-2">
-            <Apple className="w-5 h-5 text-red-500" />
+            <Apple color = "red" className="w-5 h-5" />
             <span className="text-sm text-gray-600">Apples Collected</span>
           </div>
           <div className="text-2xl font-bold text-[#1e3a5f]">
@@ -110,11 +111,11 @@ export function DashboardPage() {
 
         {goals.length === 0 ? (
           <div className="text-center py-8">
-            <Target className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500 mb-4">No goals set yet</p>
+            <TreePalm className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <p className="text-gray-500 mb-4">No trees set yet</p>
             <Link to="/goals">
               <Button className="bg-[#1e3a5f] hover:bg-[#2d4f7f]">
-                Set Your First Goal
+                Set Your First Tree!
               </Button>
             </Link>
           </div>

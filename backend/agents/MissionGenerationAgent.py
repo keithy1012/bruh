@@ -54,8 +54,8 @@ class MissionGenerationAgent:
             mission_interval_days = 180  #
             num_missions = min(24, days_until_goal // 180)
         
-        num_missions = max(5, num_missions)  # At least 5 missions
-        num_missions = min(30, num_missions) # At most 20
+        num_missions = max(3, num_missions)  # At least 3 missions
+        num_missions = min(12, num_missions) # At most 12
         
         # Calculate monthly savings needed
         months_until_goal = max(1, days_until_goal / 30)
