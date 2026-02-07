@@ -32,7 +32,12 @@ class CreditOptimizationAgent:
             "Ask the user about their lifestyle: how often they travel, how much they spend on dining out, "
             "groceries, gas, online shopping, subscriptions, etc. "
             "Ask one or two questions at a time. Be friendly and conversational. "
-            "Once you have enough information, recommend a credit card stack (2-4 cards) that maximizes their rewards."
+            "Once you have enough information, recommend a credit card stack (2-4 cards) that maximizes their rewards. "
+            "IMPORTANT: When you mention a specific credit card by name, ALWAYS format it as a markdown link "
+            "using the official card application or info page URL. For example: "
+            "[Chase Sapphire Preferred](https://creditcards.chase.com/rewards-credit-cards/sapphire/preferred) "
+            "or [Amex Gold Card](https://www.americanexpress.com/us/credit-cards/card/gold-card/). "
+            "This helps the user learn more about the cards you recommend."
         )
 
         # If conversation is empty, start with an intro
@@ -81,8 +86,24 @@ class CreditOptimizationAgent:
         system_prompt = (
             "You are a credit card optimization expert. Based on the conversation below, "
             "recommend a credit card stack (2-4 cards) for the user. "
-            "Return a JSON object with: cards (list of card names and why they are recommended), "
-            "total_estimated_annual_value (float), and summary (string)."
+            "Return a JSON object with the following structure:\n"
+            "{\n"
+            '  "cards": [\n'
+            '    {\n'
+            '      "name": "Card Name",\n'
+            '      "issuer": "Bank/Issuer Name",\n'
+            '      "reason": "Why this card is recommended",\n'
+            '      "annual_fee": 0,\n'
+            '      "best_categories": ["category1", "category2"],\n'
+            '      "url": "https://official-card-application-or-info-page-url"\n'
+            '    }\n'
+            '  ],\n'
+            '  "total_estimated_annual_value": 500.0,\n'
+            '  "summary": "Overall strategy explanation",\n'
+            '  "strategy": "How to use these cards together"\n'
+            "}\n"
+            "IMPORTANT: For the url field, provide the official application or product page URL for each credit card. "
+            "Use real URLs from the card issuer's website (e.g., chase.com, americanexpress.com, etc.)."
         )
         context = (
             f"User profile: Age {user_profile.age}, Income ${user_profile.annual_income:,.2f}, Debts: {json.dumps(user_profile.debts)}.\n"

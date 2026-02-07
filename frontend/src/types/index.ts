@@ -72,6 +72,7 @@ export interface CreditCardStackCard {
   issuer?: string;
   annual_fee?: number;
   best_categories?: string[];
+  url?: string;
 }
 
 export interface CreditCardStack {

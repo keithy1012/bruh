@@ -27,6 +27,42 @@ const creditFactors = [
   { label: 'New Credit', score: 85, status: 'excellent', impact: 'Low Impact' },
 ];
 
+// Helper function to render markdown links in text
+function renderMessageWithLinks(text: string) {
+  // Match markdown links: [text](url)
+  const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+  const parts: (string | JSX.Element)[] = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = linkRegex.exec(text)) !== null) {
+    // Add text before the link
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    // Add the link
+    parts.push(
+      <a
+        key={match.index}
+        href={match[2]}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-blue-600 hover:text-blue-800 underline font-medium"
+      >
+        {match[1]}
+      </a>
+    );
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Add remaining text
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : text;
+}
+
 export function CreditChatPage() {
   const navigate = useNavigate();
   const { userId } = useUser();
@@ -183,9 +219,22 @@ export function CreditChatPage() {
                   </div>
                 )}
 
-                <Button className="w-full bg-[#1e3a5f] hover:bg-[#2d4f7f] text-white text-sm">
-                  Learn More
-                </Button>
+                {card.url ? (
+                  <a
+                    href={card.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block"
+                  >
+                    <Button className="w-full bg-[#1e3a5f] hover:bg-[#2d4f7f] text-white text-sm">
+                      Learn More & Apply
+                    </Button>
+                  </a>
+                ) : (
+                  <Button className="w-full bg-[#1e3a5f] hover:bg-[#2d4f7f] text-white text-sm">
+                    Learn More
+                  </Button>
+                )}
               </div>
             </Card>
           ))}
@@ -314,7 +363,12 @@ export function CreditChatPage() {
                     : "bg-white text-gray-900 shadow-sm border border-gray-200"
                 }`}
               >
-                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                <p className="text-sm whitespace-pre-wrap">
+                  {message.role === "assistant" 
+                    ? renderMessageWithLinks(message.content)
+                    : message.content
+                  }
+                </p>
               </div>
               {message.role === "user" && (
                 <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center flex-shrink-0">
