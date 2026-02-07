@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Wallet, ArrowRight, Plus, Trash2, Upload, X } from "lucide-react";
+import { Wallet, ArrowRight, Plus, Trash2, Upload, X, TreePalm } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Card } from "../components/ui/card";
@@ -102,10 +102,10 @@ export function OnboardingPage() {
       <Card className="w-full max-w-md p-6 sm:p-8">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-[#1e3a5f] rounded-full mb-4">
-            <Wallet className="w-8 h-8 text-white" />
+            <TreePalm className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-[#1e3a5f]">
-            Welcome to MoneyTree
+            Welcome to MoneyTree!
           </h1>
           <p className="text-gray-600 mt-2">
             Let's get started with your financial journey

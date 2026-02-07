@@ -51,7 +51,6 @@ class OnboardRequest(BaseModel):
     debts: List[Dict[str, Any]] = []
 
 @app.post("/api/users/onboard")
-@app.post("/api/users/onboard")
 async def onboard_user(
     age: int = Form(...),
     annual_income: float = Form(...),

@@ -273,51 +273,40 @@ export function BudgetPage() {
           </div>
         </Card>
 
-        {/* Optimization Score */}
-        <Card className="p-4 sm:p-6">
-          <h3 className="text-lg sm:text-xl font-semibold text-[#1e3a5f] mb-4 sm:mb-6">Financial Health Score</h3>
-          
-          <div className="flex items-center justify-center h-64 sm:h-80">
-            <div className="text-center">
-              <div className="relative inline-flex items-center justify-center">
-                <svg className="w-48 h-48 sm:w-64 sm:h-64">
-                  <circle
-                    className="text-gray-200"
-                    strokeWidth="16"
-                    stroke="currentColor"
-                    fill="transparent"
-                    r="80"
-                    cx="50%"
-                    cy="50%"
-                  />
-                  
-                  <circle
-                    className="text-[#1e3a5f]"
-                    strokeWidth="16"
-                    strokeDasharray={`${2 * Math.PI * 80}`}
-                    strokeDashoffset={`${2 * Math.PI * 80 * (1 - budgetData.optimization_score / 100)}`}
-                    strokeLinecap="round"
-                    stroke="currentColor"
-                    fill="transparent"
-                    r="80"
-                    cx="50%"
-                    cy="50%"
-                    transform="rotate(-90 96 96)"
-                  />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <div className="text-4xl sm:text-5xl font-bold text-[#1e3a5f]">
-                    {budgetData.optimization_score.toFixed(0)}
-                  </div>
-                  <div className="text-sm sm:text-base text-gray-500">out of 100</div>
-                </div>
-              </div>
-              <p className="mt-6 text-sm sm:text-base text-gray-600 max-w-xs mx-auto">
-                Your financial optimization score based on spending patterns and savings rate
-              </p>
+        {/* Recent Transactions */}
+        {recent_transactions && recent_transactions.length > 0 && (
+          <Card className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-6">
+              <h3 className="text-lg sm:text-xl font-semibold text-[#1e3a5f]">Recent Transactions</h3>
+              <Button className="bg-[#1e3a5f] hover:bg-[#2d4f7f] text-white w-full sm:w-auto text-sm">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Transaction
+              </Button>
             </div>
-          </div>
-        </Card>
+
+            <div className="space-y-1 max-h-96 overflow-y-auto">
+              {recent_transactions.map((transaction, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-3 sm:p-4 hover:bg-gray-50 rounded-lg transition-colors"
+                >
+                  <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
+                    <div className="text-xs sm:text-sm text-gray-500 w-12 sm:w-16 flex-shrink-0">{transaction.date}</div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm sm:text-base text-[#1e3a5f] truncate font-medium">{transaction.description}</div>
+                      <div className="text-xs sm:text-sm text-gray-500">{transaction.category}</div>
+                    </div>
+                  </div>
+                  <div className={`text-base sm:text-lg font-semibold flex-shrink-0 ml-2 ${
+                    transaction.amount > 0 ? 'text-green-600' : 'text-gray-900'
+                  }`}>
+                    {transaction.amount > 0 ? '+' : ''}${Math.abs(transaction.amount).toFixed(2)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
       </div>
 
       {/* Personalized Insights */}
@@ -356,41 +345,6 @@ export function BudgetPage() {
             })}
           </div>
         </div>
-      )}
-
-      {/* Recent Transactions */}
-      {recent_transactions && recent_transactions.length > 0 && (
-        <Card className="p-4 sm:p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-6">
-            <h3 className="text-lg sm:text-xl font-semibold text-[#1e3a5f]">Recent Transactions</h3>
-            <Button className="bg-[#1e3a5f] hover:bg-[#2d4f7f] text-white w-full sm:w-auto text-sm">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Transaction
-            </Button>
-          </div>
-
-          <div className="space-y-1">
-            {recent_transactions.map((transaction, index) => (
-              <div
-                key={index}
-                className="flex items-center justify-between p-3 sm:p-4 hover:bg-gray-50 rounded-lg transition-colors"
-              >
-                <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
-                  <div className="text-xs sm:text-sm text-gray-500 w-12 sm:w-16 flex-shrink-0">{transaction.date}</div>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm sm:text-base text-[#1e3a5f] truncate font-medium">{transaction.description}</div>
-                    <div className="text-xs sm:text-sm text-gray-500">{transaction.category}</div>
-                  </div>
-                </div>
-                <div className={`text-base sm:text-lg font-semibold flex-shrink-0 ml-2 ${
-                  transaction.amount > 0 ? 'text-green-600' : 'text-gray-900'
-                }`}>
-                  {transaction.amount > 0 ? '+' : ''}${Math.abs(transaction.amount).toFixed(2)}
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
       )}
     </div>
   );
