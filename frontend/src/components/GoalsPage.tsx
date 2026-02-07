@@ -99,7 +99,7 @@ export function GoalsPage() {
         style={{ animationDelay: '0ms' }}
       >
         <div>
-          <h1 className="text-2xl sm:text-3xl text-[#1e3a5f] mb-2">Your Financial Goals</h1>
+          <h1 className="text-2xl sm:text-3xl text-[#1e3a5f] mb-2">Your Financial Trees</h1>
           <p className="text-sm sm:text-base text-gray-600">Track and achieve your financial dreams</p>
         </div>
         
@@ -108,7 +108,7 @@ export function GoalsPage() {
           className="bg-[#1e3a5f] hover:bg-[#2d4f7f] text-white w-full sm:w-auto"
         >
           <Plus className="w-4 h-4 mr-2" />
-          Add New Goal
+          Add New Tree
         </Button>
       </div>
 
@@ -116,14 +116,14 @@ export function GoalsPage() {
       {goals.length === 0 && (
         <Card className="p-8 text-center animate-fade-in-up" style={{ animationDelay: '150ms' }}>
           <Target className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No goals yet</h3>
-          <p className="text-gray-600 mb-4">Start by adding your first financial goal</p>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No trees yet</h3>
+          <p className="text-gray-600 mb-4">Start by adding your first financial tree</p>
           <Button 
             onClick={() => navigate('/goals/chat')}
             className="bg-[#1e3a5f] hover:bg-[#2d4f7f] text-white"
           >
             <Plus className="w-4 h-4 mr-2" />
-            Add Your First Goal
+            Add Your First Tree
           </Button>
         </Card>
       )}

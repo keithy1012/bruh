@@ -6,6 +6,7 @@ import {
   TrendingUp,
   CheckCircle2,
   ArrowRight,
+  Apple,
 } from "lucide-react";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -86,11 +87,11 @@ export function DashboardPage() {
 
         <Card className="p-4 sm:p-6 animate-slide-in-right" style={{ animationDelay: '250ms' }}>
           <div className="flex items-center gap-3 mb-2">
-            <TrendingUp className="w-5 h-5 text-orange-500" />
-            <span className="text-sm text-gray-600">Current Streak</span>
+            <Apple className="w-5 h-5 text-red-500" />
+            <span className="text-sm text-gray-600">Apples Collected</span>
           </div>
           <div className="text-2xl font-bold text-[#1e3a5f]">
-            {streak?.current_streak || 0} days
+            {streak?.apples_collected || 0}
           </div>
         </Card>
       </div>

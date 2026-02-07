@@ -537,18 +537,29 @@ async def get_dashboard(user_id: str):
     
     # Aggregate all missions from all goals
     all_missions = []
+    apples_collected = 0  # Count goals with all missions completed
+    
     if user_id in missions_db:
-        for goal_id, goal_missions in missions_db[user_id].items():
-            all_missions.extend(goal_missions)
+        user_missions = missions_db[user_id]
+        # Check if it's a nested dict (goal_id -> missions) or flat list
+        if isinstance(user_missions, dict):
+            for goal_id, goal_missions in user_missions.items():
+                all_missions.extend(goal_missions)
+                # Check if all missions for this goal are completed
+                if goal_missions and all(m.status == "completed" for m in goal_missions):
+                    apples_collected += 1
+        elif isinstance(user_missions, list):
+            all_missions.extend(user_missions)
     
     # Count completed missions
     completed_count = sum(1 for m in all_missions if m.status == "completed")
     
-    # Simple streak calculation (could be more sophisticated)
+    # Stats including apples
     streak = {
         "current_streak": 0,
         "total_missions_completed": completed_count,
-        "longest_streak": 0
+        "longest_streak": 0,
+        "apples_collected": apples_collected
     }
     
     return {

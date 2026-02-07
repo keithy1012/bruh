@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -16,6 +16,10 @@ import {
   Zap,
   BarChart3,
   Plus,
+  Sprout,
+  TreeDeciduous,
+  Leaf,
+  Apple,
 } from "lucide-react";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -54,6 +58,8 @@ export function GoalDetailPage() {
   const [showSavingsModal, setShowSavingsModal] = useState(false);
   const [savingsInput, setSavingsInput] = useState("");
   const [isUpdatingSavings, setIsUpdatingSavings] = useState(false);
+  const [showTreeCelebration, setShowTreeCelebration] = useState(false);
+  const [celebrationTreeLevel, setCelebrationTreeLevel] = useState<"seed" | "sapling" | "tree" | "appletree">("seed");
 
   // Rotating loading messages
   const loadingMessages = [
@@ -149,6 +155,80 @@ export function GoalDetailPage() {
     ? (completedMissions / missions.length) * 100 
     : 0;
 
+  // Determine current tree level
+  const getTreeLevel = (progress: number): "seed" | "sapling" | "tree" | "appletree" => {
+    if (progress < 25) return "seed";
+    if (progress < 75) return "sapling";
+    if (progress < 100) return "tree";
+    return "appletree";
+  };
+
+  const currentTreeLevel = getTreeLevel(missionProgress);
+  const previousTreeLevelRef = useRef<"seed" | "sapling" | "tree" | "appletree" | null>(null);
+  const hasInitializedRef = useRef(false);
+
+  // Check if tree level changed and trigger celebration (only after user action, not on load)
+  useEffect(() => {
+    if (missions.length === 0) return;
+    
+    // Skip the initial load - only celebrate after user completes a mission
+    if (!hasInitializedRef.current) {
+      hasInitializedRef.current = true;
+      previousTreeLevelRef.current = currentTreeLevel;
+      return;
+    }
+    
+    const prevLevel = previousTreeLevelRef.current;
+    if (prevLevel && currentTreeLevel !== prevLevel) {
+      // Tree grew! Show celebration
+      const levelOrder = { seed: 0, sapling: 1, tree: 2, appletree: 3 };
+      if (levelOrder[currentTreeLevel] > levelOrder[prevLevel]) {
+        setCelebrationTreeLevel(currentTreeLevel);
+        setShowTreeCelebration(true);
+        
+        // Hide celebration after animation
+        setTimeout(() => {
+          setShowTreeCelebration(false);
+        }, 3000);
+      }
+    }
+    previousTreeLevelRef.current = currentTreeLevel;
+  }, [currentTreeLevel, missions.length]);
+
+  // Get tree icon based on mission progress
+  const TreeIcon = () => {
+    if (missionProgress < 25) {
+      return <Sprout className="w-6 h-6" />; // Seed/sprout
+    } else if (missionProgress < 75) {
+      return <Leaf className="w-6 h-6" />; // Sapling
+    } else if (missionProgress < 100) {
+      return <TreeDeciduous className="w-6 h-6" />; // Full tree
+    } else {
+      return <Apple className="w-6 h-6" />; // Apple tree (100% complete)
+    }
+  };
+
+  const getTreeLabel = () => {
+    if (missionProgress < 25) return "Seed";
+    if (missionProgress < 75) return "Sapling";
+    if (missionProgress < 100) return "Tree";
+    return "Apple Tree";
+  };
+
+  // Get celebration tree icon (larger version)
+  const CelebrationTreeIcon = () => {
+    const iconStyle = { width: "160px", height: "160px" };
+    if (celebrationTreeLevel === "seed") {
+      return <Sprout className="text-white" style={iconStyle} />;
+    } else if (celebrationTreeLevel === "sapling") {
+      return <Leaf className="text-white" style={iconStyle} />;
+    } else if (celebrationTreeLevel === "tree") {
+      return <TreeDeciduous className="text-white" style={iconStyle} />;
+    } else {
+      return <Apple className="text-white" style={iconStyle} />;
+    }
+  };
+
   const handleAddSavings = async () => {
     if (!userId || !goalId || !goal) return;
     
@@ -196,6 +276,80 @@ export function GoalDetailPage() {
 
   return (
     <div className="space-y-6">
+      {/* Tree Growth Celebration Overlay */}
+      {showTreeCelebration && (
+        <div 
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center"
+          style={{
+            background: "linear-gradient(to bottom right, rgba(34, 197, 94, 0.95), rgba(5, 150, 105, 0.95))",
+            animation: "expandFromCenter 3s ease-in-out forwards",
+          }}
+        >
+          <div 
+            className="flex flex-col items-center gap-6"
+            style={{
+              animation: "contentExpandIn 0.6s ease-out forwards",
+            }}
+          >
+            <div className="p-8 bg-white/20 rounded-full">
+              <CelebrationTreeIcon />
+            </div>
+            <div className="text-center">
+              <h2 
+                className="text-4xl font-bold text-white mb-2"
+                style={{
+                  animation: "textExpandIn 0.6s ease-out 0.2s both",
+                }}
+              >
+                🎉 Congrats! 🎉
+              </h2>
+              <p 
+                className="text-2xl text-white"
+                style={{
+                  animation: "textExpandIn 0.6s ease-out 0.4s both",
+                }}
+              >
+                {celebrationTreeLevel === "appletree" 
+                  ? "You completed all missions! 🍎" 
+                  : `Your tree grew to a ${celebrationTreeLevel === "sapling" ? "Sapling" : "Full Tree"}!`}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Animation Styles */}
+      <style>{`
+        @keyframes expandFromCenter {
+          0% { 
+            clip-path: circle(0% at 50% 50%);
+            opacity: 1;
+          }
+          15% { 
+            clip-path: circle(100% at 50% 50%);
+            opacity: 1;
+          }
+          85% { 
+            clip-path: circle(100% at 50% 50%);
+            opacity: 1;
+          }
+          100% { 
+            clip-path: circle(100% at 50% 50%);
+            opacity: 0;
+            pointer-events: none;
+          }
+        }
+        @keyframes contentExpandIn {
+          0% { transform: scale(0); opacity: 0; }
+          60% { transform: scale(1.1); opacity: 1; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes textExpandIn {
+          0% { transform: scale(0.5); opacity: 0; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+      `}</style>
+
       {/* Back Button */}
       <button
         onClick={() => navigate("/goals")}
@@ -210,7 +364,7 @@ export function GoalDetailPage() {
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-white/20 rounded-lg">
-              <Target className="w-6 h-6" />
+              <TreeIcon />
             </div>
             <div>
               <h1 className="text-2xl font-bold">{goal.title}</h1>
@@ -237,7 +391,7 @@ export function GoalDetailPage() {
               <span>Financial Progress</span>
               <span>{progress.toFixed(0)}%</span>
             </div>
-            <Progress value={progress} className="h-2 bg-white/20" />
+            <Progress value={progress} className="h-2 bg-white/20" indicatorClassName="bg-white" />
           </div>
           {missions.length > 0 && (
             <div>
@@ -245,7 +399,7 @@ export function GoalDetailPage() {
                 <span>Mission Progress ({completedMissions}/{missions.length})</span>
                 <span>{missionProgress.toFixed(0)}%</span>
               </div>
-              <Progress value={missionProgress} className="h-2 bg-white/20" />
+              <Progress value={missionProgress} className="h-2 bg-white/20" indicatorClassName="bg-white" />
             </div>
           )}
           {/* Add Savings Button */}

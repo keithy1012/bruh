@@ -113,10 +113,11 @@ export interface Mission {
 
 // User Streak Types
 export interface UserStreak {
-  user_id: string;
-  username: string;
+  user_id?: string;
+  username?: string;
   current_streak: number;
   longest_streak: number;
   total_missions_completed: number;
-  shark_level: number;
+  shark_level?: number;
+  apples_collected?: number;
 }
