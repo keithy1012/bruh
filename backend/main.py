@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
+from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Form
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional, Dict, Any
 from datetime import datetime, date
@@ -14,13 +14,15 @@ from models.FinancialGoal import FinancialGoal
 from models.ParsedStatement import ParsedStatement
 from models.Mission import Mission
 from models.SocialFeed import SocialFeed
+from models.SpendingReport import SpendingReport
 from agents.GoalPlanningAgent import GoalPlanningAgent
 from agents.StatementParsingAgent import StatementParsingAgent
 from agents.CreditOptimizationAgent import CreditOptimizationAgent
 from agents.MissionGenerationAgent import MissionGenerationAgent
 
+
 # Initialize FastAPI app
-app = FastAPI(title="MoneyMap")
+app = FastAPI(title="MoneyTree")
 
 # CORS middleware
 app.add_middleware(
@@ -41,6 +43,7 @@ goals_db: Dict[str, List[FinancialGoal]] = {}
 statements_db: Dict[str, ParsedStatement] = {}
 missions_db: Dict[str, List[Mission]] = {}
 social_feed: List[SocialFeed] = []
+spending_reports_db: Dict[str, SpendingReport] = {}  
 
 class OnboardRequest(BaseModel):
     age: int
@@ -48,25 +51,142 @@ class OnboardRequest(BaseModel):
     debts: List[Dict[str, Any]] = []
 
 @app.post("/api/users/onboard")
-async def onboard_user(request: OnboardRequest):
+@app.post("/api/users/onboard")
+async def onboard_user(
+    age: int = Form(...),
+    annual_income: float = Form(...),
+    debts: str = Form("[]"),  # JSON string
+    transactions_csv: Optional[UploadFile] = File(None)
+):
     """
-    Initial user onboarding: basic info (age, income, debts)
+    Initial user onboarding: basic info (age, income, debts) + optional CSV upload
+    Accepts both FormData (with CSV) and JSON (without CSV) for backward compatibility
     """
     user_id = f"user_{datetime.now().timestamp()}"
+    
+    # Parse debts from JSON string
+    try:
+        debts_list = json.loads(debts)
+    except json.JSONDecodeError:
+        debts_list = []
     
     # Create user profile
     user_profile = UserProfile(
         user_id=user_id,
-        age=request.age,
-        annual_income=request.annual_income,
-        debts=request.debts
+        age=age,
+        annual_income=annual_income,
+        debts=debts_list
     )
     users_db[user_id] = user_profile
+
+    # Process CSV if uploaded
+    spending_report = None
+    if transactions_csv:
+        try:
+            # Read file content
+            file_content = await transactions_csv.read()
+            
+            # Parse CSV using the agent
+            spending_report = await StatementParsingAgent.parse_csv_statement(
+                file_content, 
+                user_id
+            )
+            
+            # Store spending report
+            spending_reports_db[user_id] = spending_report
+        except Exception as e:
+            # Log error but don't fail onboarding
+            print(f"Error processing CSV: {str(e)}")
+            # Optionally return a warning in the response
 
     return {
         "user_id": user_id,
         "message": "Onboarding successful",
-        "next_step": "goal_planning"
+        "next_step": "goal_planning",
+        "has_spending_data": spending_report is not None
+    }
+
+@app.get("/api/budget/{user_id}")
+async def get_budget_data(user_id: str):
+    """
+    Get budget and spending data for a user based on uploaded CSV
+    """
+    if user_id not in users_db:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    user = users_db[user_id]
+    spending_report = spending_reports_db.get(user_id)
+    
+    if not spending_report:
+        # Return default data if no CSV was uploaded
+        return {
+            "has_data": False,
+            "message": "No spending data available. Upload a CSV to see your budget analysis."
+        }
+    
+    # Transform spending report into frontend format
+    # Map categories to frontend format with icons
+    category_mapping = {
+        "Housing": {"icon": "Home", "color": "#1e3a5f"},
+        "Transportation": {"icon": "Car", "color": "#2d4f7f"},
+        "Food & Dining": {"icon": "ShoppingCart", "color": "#4a6fa5"},
+        "Entertainment": {"icon": "Coffee", "color": "#6b8fc9"},
+        "Utilities": {"icon": "Zap", "color": "#8cafed"},
+        "Shopping": {"icon": "ShoppingCart", "color": "#9db8d9"},
+        "Other": {"icon": "DollarSign", "color": "#b3d1ff"}
+    }
+    
+    spending_categories = []
+    for category, amount in spending_report.category_breakdown.items():
+        cat_info = category_mapping.get(category, {"icon": "DollarSign", "color": "#b3d1ff"})
+        spending_categories.append({
+            "name": category,
+            "amount": round(amount, 2),
+            "color": cat_info["color"],
+            "icon": cat_info["icon"]
+        })
+    
+    # Convert insights to frontend format
+    insights = []
+    for insight in spending_report.insights:
+        insight_type_mapping = {
+            "opportunity": "suggestion",
+            "warning": "warning",
+            "suggestion": "suggestion"
+        }
+        
+        insights.append({
+            "title": insight.title,
+            "description": insight.description,
+            "type": insight_type_mapping.get(insight.insight_type, "suggestion"),
+            "icon": "Lightbulb" if insight.insight_type == "opportunity" else "TrendingDown"
+        })
+    
+    # Convert transactions to frontend format
+    recent_transactions = []
+    for transaction in sorted(spending_report.transactions, key=lambda x: x.date, reverse=True)[:10]:
+        recent_transactions.append({
+            "date": transaction.date.strftime("%b %d"),
+            "description": transaction.description,
+            "category": transaction.category,
+            "amount": transaction.amount
+        })
+    
+    # Calculate savings
+    savings = spending_report.total_income - spending_report.total_spending
+    
+    return {
+        "has_data": True,
+        "summary": {
+            "income": round(spending_report.total_income, 2),
+            "expenses": round(spending_report.total_spending, 2),
+            "savings": round(savings, 2)
+        },
+        "spending_categories": spending_categories,
+        "insights": insights,
+        "recent_transactions": recent_transactions,
+        "period": spending_report.period,
+        "optimization_score": spending_report.optimization_score
     }
 
 class GoalChatRequest(BaseModel):

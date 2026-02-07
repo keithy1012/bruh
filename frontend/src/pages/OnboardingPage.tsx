@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Wallet, ArrowRight, Plus, Trash2, Upload } from "lucide-react";
+import { Wallet, ArrowRight, Plus, Trash2, Upload, X } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Card } from "../components/ui/card";
@@ -72,11 +72,21 @@ export function OnboardingPage() {
     setError(null);
 
     try {
-      const result = await api.onboardUser({
-        age: Number(age),
-        annual_income: Number(annualIncome),
-        debts: debts.filter((d) => d.type && d.amount > 0),
-      });
+      // Create FormData to handle file upload
+      const formData = new FormData();
+      formData.append("age", String(age));
+      formData.append("annual_income", String(annualIncome));
+      formData.append(
+        "debts",
+        JSON.stringify(debts.filter((d) => d.type && d.amount > 0))
+      );
+      
+      // Add CSV file if it exists
+      if (csvFile) {
+        formData.append("transactions_csv", csvFile);
+      }
+
+      const result = await api.onboardUser(formData);
 
       setUserId(result.user_id);
       navigate("/goals");
@@ -292,7 +302,7 @@ export function OnboardingPage() {
                     onClick={removeFile}
                     className="hover:bg-red-50 hover:text-red-600"
                   >
-                    <Plus className="w-4 h-4" />
+                    <X className="w-4 h-4" />
                   </Button>
                 </div>
               )}

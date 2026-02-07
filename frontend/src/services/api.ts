@@ -32,15 +32,63 @@ class ApiService {
   }
 
   // User Onboarding
-  async onboardUser(data: {
-    age: number;
-    annual_income: number;
-    debts: Array<{ type: string; amount: number }>;
-  }): Promise<{ user_id: string; message: string; next_step: string }> {
-    return this.request("/api/users/onboard", {
+  async onboardUser(
+    data: 
+      | FormData 
+      | {
+          age: number;
+          annual_income: number;
+          debts: Array<{ type: string; amount: number }>;
+        }
+  ): Promise<{ user_id: string; message: string; next_step?: string; has_spending_data?: boolean }> {
+    const isFormData = data instanceof FormData;
+    
+    return fetch(`${API_BASE_URL}/api/users/onboard`, {
       method: "POST",
-      body: JSON.stringify(data),
+      // Don't set Content-Type for FormData - browser will set it with boundary
+      ...(!isFormData && {
+        headers: { "Content-Type": "application/json" },
+      }),
+      body: isFormData ? data : JSON.stringify(data),
+    }).then(async (response) => {
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.detail || `API Error: ${response.status}`);
+      }
+      return response.json();
     });
+  }
+   // Get Budget Data 
+   async getBudgetData(userId: string): Promise<{
+    has_data: boolean;
+    message?: string;
+    summary?: {
+      income: number;
+      expenses: number;
+      savings: number;
+    };
+    spending_categories?: Array<{
+      name: string;
+      amount: number;
+      color: string;
+      icon: string;
+    }>;
+    insights?: Array<{
+      title: string;
+      description: string;
+      type: "positive" | "warning" | "suggestion";
+      icon: string;
+    }>;
+    recent_transactions?: Array<{
+      date: string;
+      description: string;
+      category: string;
+      amount: number;
+    }>;
+    period?: string;
+    optimization_score?: number;
+  }> {
+    return this.request(`/api/budget/${userId}`);
   }
 
   // Get Goal Conversation History
