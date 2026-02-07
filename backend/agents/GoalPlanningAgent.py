@@ -6,12 +6,20 @@ from dotenv import load_dotenv
 import os
 from models.UserProfile import UserProfile
 from models.FinancialGoal import FinancialGoal
-from dedalus_labs import AsyncDedalus
+from dedalus_labs import AsyncDedalus, DedalusRunner
 
 load_dotenv()
 
+# MCP Server configuration for Financial Planner
+FINANCIAL_PLANNER_MCP = {
+    "financial-planner": {
+        "command": "npx",
+        "args": ["-y", "@mohanputti/financial-planner-mcp"]
+    }
+}
+
 class GoalPlanningAgent:
-    """Long-term financial goal modeling agent"""
+    """Long-term financial goal modeling agent with Financial Planner MCP integration"""
 
     @staticmethod
     async def chat(
@@ -25,12 +33,13 @@ class GoalPlanningAgent:
         Returns the AI response and updated conversation_history.
         """
         system_prompt = (
-            "You are a friendly financial planning assistant. "
+            "You are a friendly financial planning assistant with access to a financial planning tool. "
             "You have the user's profile information. "
             "Your job is to ask about their long-term financial goals (such as retirement, buying a house, travel, emergency fund, etc.). "
             "Ask one or two questions at a time. Be conversational and helpful. "
             "For each goal, try to understand: the target amount, target date, and priority. "
-            "Once you have gathered all the information, summarize and confirm with the user."
+            "Once you have gathered all the information, summarize and confirm with the user. "
+            "You can use the financial_planner tool to calculate SIP requirements, investment planning, and goal achievement strategies."
         )
 
         if conversation_history is None:
@@ -63,7 +72,8 @@ class GoalPlanningAgent:
         client = AsyncDedalus(api_key=os.environ.get("DEDALUS_API_KEY"))
         chat_completion = await client.chat.completions.create(
             model="openai/gpt-4-turbo",
-            messages=messages
+            messages=messages,
+            mcp_servers=["mohanputti/financial-planner-mcp"]
         )
         ai_content = chat_completion.choices[0].message.content
         conversation_history.append({"role": "assistant", "content": ai_content})
@@ -73,24 +83,29 @@ class GoalPlanningAgent:
     async def finalize_goals(conversation_history: List[Dict]) -> List[FinancialGoal]:
         """
         After gathering info via chat, extract and return a list of FinancialGoal objects.
+        Uses the Financial Planner MCP for enhanced goal calculations.
         """
         system_prompt = (
-            "You are a financial planning assistant. Based on the conversation below, "
-            "extract all the user's long-term financial goals and return them as a JSON array. "
+            "You are a financial planning assistant with access to a financial planning tool. "
+            "Based on the conversation below, extract all the user's long-term financial goals and return them as a JSON array. "
             "Each goal should have: goal_id (string), user_id (leave blank), title, description, "
-            "target_amount (float), target_date (YYYY-MM-DD), priority (high/medium/low), category."
+            "target_amount (float), target_date (YYYY-MM-DD), priority (high/medium/low), category. "
+            "You can use the financial_planner tool to calculate investment requirements for each goal."
         )
 
         messages = [{"role": "system", "content": system_prompt}] + conversation_history
         messages.append({"role": "user", "content": "Please return the list of goals as JSON."})
 
         client = AsyncDedalus(api_key=os.environ.get("DEDALUS_API_KEY"))
+
         chat_completion = await client.chat.completions.create(
             model="openai/gpt-4-turbo",
-            messages=messages
+            messages=messages,
+            mcp_servers=["mohanputti/financial-planner-mcp"]
         )
-        ai_content = chat_completion.choices[0].message.content
 
+        ai_content = chat_completion.choices[0].message.content
+  
         try:
             goals_data = json.loads(ai_content)
         except Exception:

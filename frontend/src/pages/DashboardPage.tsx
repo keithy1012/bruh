@@ -26,8 +26,12 @@ export function DashboardPage() {
 
     const fetchDashboard = async () => {
       try {
+        // Fetch goals from the goals endpoint (same as GoalsPage)
+        const goalsData = await api.getGoals(userId);
+        setGoals(goalsData.goals || []);
+        
+        // Fetch other dashboard data
         const data = await api.getDashboard(userId);
-        setGoals(data.goals || []);
         setMissions(data.missions || []);
         setStreak(data.streak || null);
       } catch (err) {
