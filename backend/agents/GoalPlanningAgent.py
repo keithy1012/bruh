@@ -14,26 +14,37 @@ class GoalPlanningAgent:
     """Long-term financial goal modeling agent"""
 
     @staticmethod
-    async def chat(conversation_history: List[Dict], user_message: str = None) -> Dict:
+    async def chat(
+        user_profile: UserProfile,
+        conversation_history: List[Dict] = None,
+        user_message: str = None
+    ) -> Dict:
         """
-        Chat with the user to collect age, income, debts, and goals.
+        Chat with the user to collect their financial goals.
         Pass user_message as None to start the conversation.
         Returns the AI response and updated conversation_history.
         """
         system_prompt = (
             "You are a friendly financial planning assistant. "
-            "Your job is to ask the user for their age, annual income, any debts (type and amount), "
-            "and then ask about their long-term financial goals (such as retirement, buying a house, travel, etc.). "
+            "You have the user's profile information. "
+            "Your job is to ask about their long-term financial goals (such as retirement, buying a house, travel, emergency fund, etc.). "
             "Ask one or two questions at a time. Be conversational and helpful. "
+            "For each goal, try to understand: the target amount, target date, and priority. "
             "Once you have gathered all the information, summarize and confirm with the user."
         )
 
         if conversation_history is None:
             conversation_history = []
 
-        # Start conversation if empty
+        # Start conversation if empty - personalize with user info
         if not conversation_history:
-            first_prompt = "Hi! I'm here to help you plan your financial future. Let's start — how old are you?"
+            debts_summary = ", ".join([f"{d.get('type', 'debt')}: ${d.get('amount', 0):,.0f}" for d in user_profile.debts]) if user_profile.debts else "no debts"
+            first_prompt = (
+                f"Hi! I'm here to help you plan your financial future. "
+                f"I see you're {user_profile.age} years old with an annual income of ${user_profile.annual_income:,.0f}"
+                f"{f' and {debts_summary}' if user_profile.debts else ''}. "
+                f"What financial goals would you like to work towards? For example, saving for retirement, building an emergency fund, buying a home, or planning a vacation?"
+            )
             conversation_history.append({"role": "assistant", "content": first_prompt})
             return {"response": first_prompt, "conversation_history": conversation_history}
 
@@ -41,7 +52,13 @@ class GoalPlanningAgent:
         if user_message:
             conversation_history.append({"role": "user", "content": user_message})
 
-        messages = [{"role": "system", "content": system_prompt}] + conversation_history
+        # Build context for LLM
+        context = (
+            f"User profile: Age {user_profile.age}, Income ${user_profile.annual_income:,.2f}, "
+            f"Debts: {json.dumps(user_profile.debts)}.\n"
+        )
+
+        messages = [{"role": "system", "content": system_prompt + "\n\n" + context}] + conversation_history
 
         client = AsyncDedalus(api_key=os.environ.get("DEDALUS_API_KEY"))
         chat_completion = await client.chat.completions.create(

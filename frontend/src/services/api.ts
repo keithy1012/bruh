@@ -43,32 +43,60 @@ class ApiService {
     });
   }
 
+  // Get Goal Conversation History
+  async getGoalConversation(
+    userId: string
+  ): Promise<{ conversation_history: Array<{ role: string; content: string }> }> {
+    return this.request(`/api/goals/chat/${userId}`);
+  }
+
   // Goal Planning Chat
   async goalPlanningChat(
-    message?: string,
-    conversationHistory?: Array<{ role: string; content: string }>
+    userId: string,
+    message?: string
   ): Promise<ChatResponse> {
-    return this.request("/api/goals/chat", {
+    return this.request(`/api/goals/chat/${userId}`, {
       method: "POST",
-      body: JSON.stringify({
-        message,
-        conversation_history: conversationHistory || [],
-      }),
+      body: JSON.stringify({ message }),
     });
   }
 
   // Finalize Goals
-  async finalizeGoals(
-    userId: string,
-    conversationHistory: Array<{ role: string; content: string }>
-  ): Promise<{ goals: FinancialGoal[]; message: string }> {
-    return this.request("/api/goals/finalize", {
+  async finalizeGoals(userId: string): Promise<{ goals: FinancialGoal[]; message: string }> {
+    return this.request(`/api/goals/finalize/${userId}`, {
       method: "POST",
-      body: JSON.stringify({
-        user_id: userId,
-        conversation_history: conversationHistory,
-      }),
     });
+  }
+
+  // Get Goals
+  async getGoals(userId: string): Promise<{ goals: FinancialGoal[] }> {
+    return this.request(`/api/goals/${userId}`);
+  }
+
+  // Update Goal
+  async updateGoal(
+    userId: string,
+    goalId: string,
+    data: { current_amount?: number; on_roadmap?: boolean }
+  ): Promise<{ goal: FinancialGoal; message: string }> {
+    return this.request(`/api/goals/${userId}/${goalId}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Delete Goal
+  async deleteGoal(userId: string, goalId: string): Promise<{ message: string }> {
+    return this.request(`/api/goals/${userId}/${goalId}`, {
+      method: "DELETE",
+    });
+  }
+
+  // Get Credit Conversation History
+  async getCreditConversation(
+    userId: string
+  ): Promise<{ conversation_history: Array<{ role: string; content: string }> }> {
+    return this.request(`/api/credit/chat/${userId}`);
   }
 
   // Credit Optimization Chat
@@ -142,15 +170,14 @@ export const api = new ApiService();
 export default api;
 
 // Convenience exports for direct function imports
-export const goalChat = (
-  conversationHistory: Array<{ role: string; content: string }>,
-  message: string
-) => api.goalPlanningChat(message, conversationHistory);
+export const goalChat = (userId: string, message?: string) =>
+  api.goalPlanningChat(userId, message);
 
-export const finalizeGoals = (
-  userId: string,
-  conversationHistory: Array<{ role: string; content: string }>
-) => api.finalizeGoals(userId, conversationHistory);
+export const finalizeGoals = (userId: string) =>
+  api.finalizeGoals(userId);
+
+export const getCreditConversation = (userId: string) =>
+  api.getCreditConversation(userId);
 
 export const creditChat = (userId: string, message?: string) =>
   api.creditOptimizationChat(userId, message);

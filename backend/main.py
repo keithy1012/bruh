@@ -69,25 +69,56 @@ async def onboard_user(request: OnboardRequest):
         "next_step": "goal_planning"
     }
 
-@app.post("/api/goals/chat")
-async def goal_planning_chat(message: Optional[str] = None, conversation_history: Optional[List[Dict]] = None):
+class GoalChatRequest(BaseModel):
+    message: Optional[str] = None
+    conversation_history: Optional[List[Dict[str, Any]]] = None
+
+# In-memory storage for goal conversations
+goal_conversations_db: Dict[str, List[Dict]] = {}
+
+@app.get("/api/goals/chat/{user_id}")
+async def get_goal_conversation(user_id: str):
     """
-    Chat with Goal Planning Agent to collect user info and goals.
-    Pass message=None and conversation_history=None to start a new conversation.
+    Get existing conversation history for goals.
+    Returns empty list if no conversation exists.
     """
-    if conversation_history is None:
-        conversation_history = []
-    result = await GoalPlanningAgent.chat(conversation_history, message)
+    if user_id not in users_db:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    conversation_history = goal_conversations_db.get(user_id, [])
+    return {"conversation_history": conversation_history}
+
+@app.post("/api/goals/chat/{user_id}")
+async def goal_planning_chat(user_id: str, request: GoalChatRequest = GoalChatRequest()):
+    """
+    Chat with Goal Planning Agent to collect user goals.
+    Pass message=None to start a new conversation.
+    """
+    if user_id not in users_db:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    user_profile = users_db[user_id]
+    conversation_history = goal_conversations_db.get(user_id, [])
+    
+    result = await GoalPlanningAgent.chat(user_profile, conversation_history, request.message)
+    goal_conversations_db[user_id] = result["conversation_history"]
     return result
 
-@app.post("/api/goals/finalize")
-async def finalize_goals(user_id: str, conversation_history: List[Dict]):
+@app.post("/api/goals/finalize/{user_id}")
+async def finalize_goals(user_id: str):
     """
     Finalize goals after conversation with Goal Planning Agent.
     Extracts goals from conversation and saves them.
     """
+    if user_id not in users_db:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user_id not in goal_conversations_db:
+        raise HTTPException(status_code=400, detail="No conversation history found. Please chat first.")
+    
+    conversation_history = goal_conversations_db[user_id]
     goals = await GoalPlanningAgent.finalize_goals(conversation_history)
-    # Optionally assign user_id to each goal
+    
+    # Assign user_id to each goal
     for goal in goals:
         goal.user_id = user_id
     goals_db[user_id] = goals
@@ -96,11 +127,75 @@ async def finalize_goals(user_id: str, conversation_history: List[Dict]):
         "message": "Goals saved successfully"
     }
 
+@app.get("/api/goals/{user_id}")
+async def get_goals(user_id: str):
+    """
+    Get all goals for a user
+    """
+    if user_id not in users_db:
+        raise HTTPException(status_code=404, detail="User not found")
+    goals = goals_db.get(user_id, [])
+    return {"goals": goals}
+
+class UpdateGoalRequest(BaseModel):
+    current_amount: Optional[float] = None
+    on_roadmap: Optional[bool] = None
+
+@app.patch("/api/goals/{user_id}/{goal_id}")
+async def update_goal(user_id: str, goal_id: str, request: UpdateGoalRequest):
+    """
+    Update a goal's progress or roadmap status
+    """
+    if user_id not in goals_db:
+        raise HTTPException(status_code=404, detail="No goals found for user")
+    
+    goals = goals_db[user_id]
+    goal = next((g for g in goals if g.goal_id == goal_id), None)
+    
+    if not goal:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    
+    if request.current_amount is not None:
+        goal.current_amount = request.current_amount
+    if request.on_roadmap is not None:
+        goal.on_roadmap = request.on_roadmap
+    
+    return {"goal": goal, "message": "Goal updated successfully"}
+
+@app.delete("/api/goals/{user_id}/{goal_id}")
+async def delete_goal(user_id: str, goal_id: str):
+    """
+    Delete a goal
+    """
+    if user_id not in goals_db:
+        raise HTTPException(status_code=404, detail="No goals found for user")
+    
+    goals = goals_db[user_id]
+    goal = next((g for g in goals if g.goal_id == goal_id), None)
+    
+    if not goal:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    
+    goals_db[user_id] = [g for g in goals if g.goal_id != goal_id]
+    return {"message": "Goal deleted successfully"}
+
 # In-memory storage for credit optimization conversations
 credit_conversations_db: Dict[str, List[Dict]] = {}
 
 class CreditChatRequest(BaseModel):
     message: Optional[str] = None
+
+@app.get("/api/credit/chat/{user_id}")
+async def get_credit_conversation(user_id: str):
+    """
+    Get existing conversation history for credit optimization.
+    Returns empty list if no conversation exists.
+    """
+    if user_id not in users_db:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    conversation_history = credit_conversations_db.get(user_id, [])
+    return {"conversation_history": conversation_history}
 
 @app.post("/api/credit/chat/{user_id}")
 async def credit_optimization_chat(user_id: str, request: CreditChatRequest = CreditChatRequest()):

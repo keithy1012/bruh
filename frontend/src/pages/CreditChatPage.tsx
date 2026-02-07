@@ -12,7 +12,7 @@ import {
   TrendingUp
 } from "lucide-react";
 import { useUser } from "../hooks/useUser";
-import { creditChat, finalizeCreditStack } from "../services/api";
+import { creditChat, finalizeCreditStack, getCreditConversation } from "../services/api";
 import { CreditCardStack, ChatMessage } from "../types";
 import { Card } from "../components/ui/card";
 import { Progress } from "../components/ui/progress";
@@ -73,23 +73,38 @@ export function CreditChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [initialized, setInitialized] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Only scroll within the messages container, not the whole page
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
   };
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  // Initialize conversation by calling the API with no message
+  // Initialize conversation - first try to get existing, then start new if empty
   useEffect(() => {
     if (userId && !initialized) {
       setInitialized(true);
       setIsLoading(true);
-      creditChat(userId)
-        .then((response) => {
-          setMessages([{ role: "assistant", content: response.response }]);
+      
+      // First, try to get existing conversation
+      getCreditConversation(userId)
+        .then((existingConvo) => {
+          if (existingConvo.conversation_history && existingConvo.conversation_history.length > 0) {
+            // Restore existing conversation
+            setMessages(existingConvo.conversation_history as ChatMessage[]);
+            setIsLoading(false);
+          } else {
+            // No existing conversation, start a new one
+            return creditChat(userId).then((response) => {
+              setMessages([{ role: "assistant", content: response.response }]);
+            });
+          }
         })
         .catch((error) => {
           // If user not found (404), redirect to onboarding
@@ -157,166 +172,6 @@ export function CreditChatPage() {
     }
   };
 
-  // Results view - show credit stack recommendations
-  if (creditStack) {
-    return (
-      <div className="space-y-6 sm:space-y-8 pb-8">
-        {/* Header */}
-        <div>
-          <h1 className="text-2xl sm:text-3xl text-[#1e3a5f] mb-2">Your Credit Card Stack</h1>
-          <p className="text-sm sm:text-base text-gray-600">
-            Personalized recommendations based on your lifestyle
-          </p>
-        </div>
-
-        {/* Recommended Cards */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
-          {creditStack.cards?.map((card, index) => (
-            <Card key={index} className="overflow-hidden hover:shadow-xl transition-shadow">
-              {/* Card Header */}
-              <div className="relative h-32 sm:h-40 bg-gradient-to-br from-[#1e3a5f] to-[#2d4f7f] p-4 sm:p-5">
-                <div className="absolute top-4 right-4">
-                  <CreditCard className="w-8 h-8 text-white/30" />
-                </div>
-                <div className="absolute bottom-4 left-4 text-white">
-                  <div className="text-xs sm:text-sm opacity-80">{card.issuer || "Credit Card"}</div>
-                  <h4 className="text-base sm:text-lg font-semibold mt-1">{card.name}</h4>
-                </div>
-              </div>
-
-              <div className="p-4 sm:p-6 space-y-4">
-                {/* Annual Fee */}
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600">Annual Fee</span>
-                  <span className="font-medium text-[#1e3a5f]">
-                    {card.annual_fee === 0 ? 'No Fee' : `$${card.annual_fee || 0}`}
-                  </span>
-                </div>
-
-                {/* Personalized Reason */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                  <div className="flex items-start gap-2">
-                    <Sparkles className="w-4 h-4 text-[#1e3a5f] flex-shrink-0 mt-0.5" />
-                    <p className="text-xs sm:text-sm text-gray-700">{card.reason}</p>
-                  </div>
-                </div>
-
-                {/* Best Categories */}
-                {card.best_categories && card.best_categories.length > 0 && (
-                  <div>
-                    <h5 className="text-sm font-medium text-[#1e3a5f] mb-2">Best For</h5>
-                    <div className="flex flex-wrap gap-2">
-                      {card.best_categories.map((cat, idx) => (
-                        <span
-                          key={idx}
-                          className="px-2 py-1 bg-green-50 text-green-700 rounded-full text-xs flex items-center gap-1"
-                        >
-                          <Check className="w-3 h-3" />
-                          {cat}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {card.url ? (
-                  <a
-                    href={card.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block"
-                  >
-                    <Button className="w-full bg-[#1e3a5f] hover:bg-[#2d4f7f] text-white text-sm">
-                      Learn More & Apply
-                    </Button>
-                  </a>
-                ) : (
-                  <Button className="w-full bg-[#1e3a5f] hover:bg-[#2d4f7f] text-white text-sm">
-                    Learn More
-                  </Button>
-                )}
-              </div>
-            </Card>
-          ))}
-        </div>
-
-        {/* Strategy Summary */}
-        {(creditStack.strategy || creditStack.summary) && (
-          <Card className="p-4 sm:p-6 bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-[#1e3a5f]/20">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#1e3a5f] rounded-full flex items-center justify-center flex-shrink-0">
-                <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg sm:text-xl font-medium text-[#1e3a5f] mb-2">Your Strategy</h3>
-                <p className="text-sm text-gray-700">{creditStack.strategy || creditStack.summary}</p>
-                {creditStack.total_estimated_annual_value && (
-                  <p className="mt-3 text-sm font-medium text-green-700">
-                    Estimated Annual Value: ${creditStack.total_estimated_annual_value.toLocaleString()}
-                  </p>
-                )}
-              </div>
-            </div>
-          </Card>
-        )}
-
-        {/* Credit Factors */}
-        <Card className="p-4 sm:p-6">
-          <h3 className="text-lg sm:text-xl font-medium text-[#1e3a5f] mb-4 sm:mb-6">
-            What Affects Your Credit Score
-          </h3>
-          
-          <div className="space-y-4 sm:space-y-6">
-            {creditFactors.map((factor) => (
-              <div key={factor.label}>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex-1">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-1 gap-1">
-                      <span className="text-sm sm:text-base text-[#1e3a5f]">{factor.label}</span>
-                      <span className="text-xs sm:text-sm text-gray-500">{factor.impact}</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 sm:gap-4">
-                  <div className="flex-1">
-                    <Progress value={factor.score} className="h-2" />
-                  </div>
-                  <span className={`text-xs sm:text-sm w-12 text-right ${
-                    factor.score >= 80 ? 'text-green-600' : 
-                    factor.score >= 60 ? 'text-blue-600' : 'text-yellow-600'
-                  }`}>
-                    {factor.score}%
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        {/* Actions */}
-        <div className="flex gap-3">
-          <Button
-            onClick={() => navigate("/dashboard")}
-            className="flex-1 bg-[#1e3a5f] hover:bg-[#2d4f7f] text-white py-3"
-          >
-            Continue to Dashboard
-          </Button>
-          <Button
-            onClick={() => {
-              setCreditStack(null);
-              setMessages([]);
-              setInitialized(false);
-            }}
-            variant="outline"
-            className="px-6 py-3"
-          >
-            Start Over
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
   // Chat view
   return (
     <div className="space-y-6 sm:space-y-8 pb-8">
@@ -343,7 +198,10 @@ export function CreditChatPage() {
         </div>
 
         {/* Messages */}
-        <div className="h-[400px] overflow-y-auto p-4 space-y-4 bg-gray-50">
+        <div 
+          ref={messagesContainerRef}
+          className="h-[400px] overflow-y-auto p-4 space-y-4 bg-gray-50"
+        >
           {messages.map((message, index) => (
             <div
               key={index}
@@ -410,15 +268,15 @@ export function CreditChatPage() {
               <Send className="w-5 h-5" />
             </Button>
           </div>
-          <div className="mt-3 flex justify-end">
+          <div className="mt-4 flex justify-center">
             <Button
               onClick={handleFinalize}
               disabled={isFinalizing}
-              className="bg-green-600 hover:bg-green-700 text-blue"
+              className="bg-[#1e3a5f] hover:bg-[#2d4f7f] text-white text-lg h-14 w-48"
             >
               {isFinalizing ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  <Loader2 className="w-6 h-6 animate-spin mr-2" />
                   Finalizing...
                 </>
               ) : (
@@ -428,6 +286,129 @@ export function CreditChatPage() {
           </div>
         </div>
       </Card>
+
+      {/* Credit Stack Results - appears below chat when finalized */}
+      {creditStack && (
+        <>
+          {/* Your Credit Card Stack Header */}
+          <div>
+            <h2 className="text-xl sm:text-2xl text-[#1e3a5f] mb-2">Your Credit Card Stack</h2>
+            <p className="text-sm sm:text-base text-gray-600">
+              Personalized recommendations based on your lifestyle
+            </p>
+          </div>
+
+          {/* Recommended Cards */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+            {creditStack.cards?.map((card, index) => (
+              <Card key={index} className="overflow-hidden hover:shadow-xl transition-shadow">
+                {/* Card Header */}
+                <div className="relative h-32 sm:h-40 bg-gradient-to-br from-[#1e3a5f] to-[#2d4f7f] p-4 sm:p-5">
+                  <div className="absolute top-4 right-4">
+                    <CreditCard className="w-8 h-8 text-blue/30" />
+                  </div>
+                  <div className="absolute bottom-4 left-4 text-blue">
+                    <div className="text-xs sm:text-sm opacity-80">{card.issuer || "Credit Card"}</div>
+                    <h4 className="text-base sm:text-lg font-semibold mt-1">{card.name}</h4>
+                  </div>
+                </div>
+
+                <div className="p-4 sm:p-6 space-y-4">
+                  {/* Annual Fee */}
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">Annual Fee</span>
+                    <span className="font-medium text-[#1e3a5f]">
+                      {card.annual_fee === 0 ? 'No Fee' : `$${card.annual_fee || 0}`}
+                    </span>
+                  </div>
+
+                  {/* Personalized Reason */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div className="flex items-start gap-2">
+                      <Sparkles className="w-4 h-4 text-[#1e3a5f] flex-shrink-0 mt-0.5" />
+                      <p className="text-xs sm:text-sm text-gray-700">{card.reason}</p>
+                    </div>
+                  </div>
+
+                  {/* Best Categories */}
+                  {card.best_categories && card.best_categories.length > 0 && (
+                    <div>
+                      <h5 className="text-sm font-medium text-[#1e3a5f] mb-2">Best For</h5>
+                      <div className="flex flex-wrap gap-2">
+                        {card.best_categories.map((cat, idx) => (
+                          <span
+                            key={idx}
+                            className="px-2 py-1 bg-green-50 text-green-700 rounded-full text-xs flex items-center gap-1"
+                          >
+                            <Check className="w-3 h-3" />
+                            {cat}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {card.url ? (
+                    <a
+                      href={card.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block"
+                    >
+                      <Button className="w-full bg-[#1e3a5f] hover:bg-[#2d4f7f] text-white text-sm">
+                        Learn More & Apply
+                      </Button>
+                    </a>
+                  ) : (
+                    <Button className="w-full bg-[#1e3a5f] hover:bg-[#2d4f7f] text-white text-sm">
+                      Learn More
+                    </Button>
+                  )}
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          {/* Strategy Summary */}
+          {(creditStack.strategy || creditStack.summary) && (
+            <Card className="p-4 sm:p-6 bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-[#1e3a5f]/20">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#1e3a5f] rounded-full flex items-center justify-center flex-shrink-0">
+                  <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg sm:text-xl font-medium text-[#1e3a5f] mb-2">Your Strategy</h3>
+                  <p className="text-sm text-gray-700">{creditStack.strategy || creditStack.summary}</p>
+                  {creditStack.total_estimated_annual_value && (
+                    <p className="mt-3 text-sm font-medium text-green-700">
+                      Estimated Annual Value: ${creditStack.total_estimated_annual_value.toLocaleString()}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {/* Actions */}
+          <div className="flex gap-3">
+            <Button
+              onClick={() => navigate("/dashboard")}
+              className="flex-1 bg-[#1e3a5f] hover:bg-[#2d4f7f] text-white py-3"
+            >
+              Continue to Dashboard
+            </Button>
+            <Button
+              onClick={() => {
+                setCreditStack(null);
+              }}
+              variant="outline"
+              className="px-6 py-3"
+            >
+              Clear Results
+            </Button>
+          </div>
+        </>
+      )}
 
       {/* Credit Factors Preview */}
       <Card className="p-4 sm:p-6">

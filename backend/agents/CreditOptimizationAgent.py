@@ -42,10 +42,8 @@ class CreditOptimizationAgent:
 
         # If conversation is empty, start with an intro
         if not conversation_history:
-            goals_summary = ", ".join([g.title for g in goals]) if goals else "No goals specified"
             intro = (
                 f"Hi! I see you're {user_profile.age} years old with an annual income of ${user_profile.annual_income:,.2f}. "
-                f"Your goals are: {goals_summary}. "
                 "Let's find the best credit cards for you! First, how often do you travel (flights, hotels) in a year?"
             )
             conversation_history.append({"role": "assistant", "content": intro})

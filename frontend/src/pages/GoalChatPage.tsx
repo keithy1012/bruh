@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Send, Bot, User, Loader2, CheckCircle2 } from "lucide-react";
-import { useChat } from "../hooks/useChat";
 import { useUser } from "../hooks/useUser";
-import { goalChat, finalizeGoals } from "../services/api";
+import { api } from "../services/api";
 import { ChatMessage, FinancialGoal } from "../types";
+import { Button } from "../components/ui/button";
 
 export function GoalChatPage() {
   const navigate = useNavigate();
@@ -13,42 +13,77 @@ export function GoalChatPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isFinalizing, setIsFinalizing] = useState(false);
   const [goals, setGoals] = useState<FinancialGoal[] | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [initialized, setInitialized] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  
-  const { messages, addMessage } = useChat([
-    {
-      role: "assistant",
-      content: "Hi! I'm here to help you set your financial goals. Let's start by learning a bit about you. What's your age?",
-    },
-  ]);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
   };
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
+  // Initialize conversation - first try to get existing, then start new if empty
+  useEffect(() => {
+    if (userId && !initialized) {
+      setInitialized(true);
+      setIsLoading(true);
+      
+      // First, try to get existing conversation
+      api.getGoalConversation(userId)
+        .then((existingConvo) => {
+          if (existingConvo.conversation_history && existingConvo.conversation_history.length > 0) {
+            // Restore existing conversation
+            setMessages(existingConvo.conversation_history as ChatMessage[]);
+            setIsLoading(false);
+          } else {
+            // No existing conversation, start a new one
+            return api.goalPlanningChat(userId).then((response) => {
+              setMessages([{ role: "assistant", content: response.response }]);
+            });
+          }
+        })
+        .catch((error) => {
+          // If user not found (404), redirect to onboarding
+          if (error.message?.includes("404") || error.message?.includes("not found")) {
+            navigate("/onboarding");
+            return;
+          }
+          setMessages([
+            {
+              role: "assistant",
+              content: "Hi! I'm here to help you set your financial goals. What would you like to work towards?",
+            },
+          ]);
+        })
+        .finally(() => setIsLoading(false));
+    }
+  }, [userId, initialized, navigate]);
+
   const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading || !userId) return;
 
     const userMessage = input.trim();
     setInput("");
-    addMessage({ role: "user", content: userMessage });
+    setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
     setIsLoading(true);
 
     try {
-      const response = await goalChat(
-        messages.map((m) => ({ role: m.role, content: m.content })),
-        userMessage
-      );
-      addMessage({ role: "assistant", content: response.response });
+      const response = await api.goalPlanningChat(userId, userMessage);
+      setMessages(response.conversation_history as ChatMessage[]);
     } catch (error) {
-      addMessage({
-        role: "assistant",
-        content: "Sorry, I encountered an error. Please try again.",
-      });
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "Sorry, I encountered an error. Please try again.",
+        },
+      ]);
     } finally {
       setIsLoading(false);
     }
@@ -59,10 +94,7 @@ export function GoalChatPage() {
     setIsFinalizing(true);
 
     try {
-      const result = await finalizeGoals(
-        userId,
-        messages.map((m) => ({ role: m.role, content: m.content }))
-      );
+      const result = await api.finalizeGoals(userId);
       setGoals(result.goals);
     } catch (error) {
       console.error("Failed to finalize goals:", error);
@@ -92,11 +124,11 @@ export function GoalChatPage() {
           <div className="space-y-4">
             {goals.map((goal, index) => (
               <div
-                key={index}
+                key={goal.goal_id || index}
                 className="bg-gray-50 rounded-lg p-4 border border-gray-200"
               >
                 <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-medium text-gray-900">{goal.name}</h3>
+                  <h3 className="font-medium text-gray-900">{goal.title}</h3>
                   <span className="text-sm text-[#1e3a5f] font-medium">
                     ${goal.target_amount.toLocaleString()}
                   </span>
@@ -104,7 +136,8 @@ export function GoalChatPage() {
                 <p className="text-sm text-gray-600 mb-2">{goal.description}</p>
                 <div className="flex gap-4 text-xs text-gray-500">
                   <span>Priority: {goal.priority}</span>
-                  <span>Timeline: {goal.timeline_months} months</span>
+                  <span>Target: {new Date(goal.target_date).toLocaleDateString()}</span>
+                  <span className="capitalize">{goal.category}</span>
                 </div>
               </div>
             ))}
@@ -112,16 +145,16 @@ export function GoalChatPage() {
 
           <div className="mt-6 flex gap-3">
             <button
-              onClick={() => navigate("/dashboard")}
+              onClick={() => navigate("/goals")}
               className="flex-1 bg-[#1e3a5f] text-white py-3 rounded-lg hover:bg-[#2d4f7f] transition-colors"
             >
-              Continue to Dashboard
+              View All Goals
             </button>
             <button
               onClick={() => setGoals(null)}
               className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
             >
-              Revise Goals
+              Add More Goals
             </button>
           </div>
         </div>
@@ -143,7 +176,7 @@ export function GoalChatPage() {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.map((message, index) => (
             <div
               key={index}
@@ -205,24 +238,21 @@ export function GoalChatPage() {
               <Send className="w-5 h-5" />
             </button>
           </div>
-          <div className="mt-3 flex justify-end">
-            <button
+          <div className="mt-4 flex justify-center">
+            <Button
               onClick={handleFinalize}
-              disabled={messages.length < 4 || isFinalizing}
-              className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              disabled={isFinalizing}
+              className="bg-[#1e3a5f] hover:bg-[#2d4f7f] text-white text-lg h-14 w-48"
             >
               {isFinalizing ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Creating Goals...
+                  <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                  Finalizing...
                 </>
               ) : (
-                <>
-                  <CheckCircle2 className="w-4 h-4" />
-                  Finalize Goals
-                </>
+                "Finalize"
               )}
-            </button>
+            </Button>
           </div>
         </div>
       </div>

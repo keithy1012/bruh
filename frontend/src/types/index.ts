@@ -19,9 +19,11 @@ export interface FinancialGoal {
   title: string;
   description: string;
   target_amount: number;
+  current_amount: number;
   target_date: string;
   priority: "high" | "medium" | "low";
   category: string;
+  on_roadmap: boolean;
 }
 
 // Transaction Types
