@@ -1,3 +1,8 @@
 *.env
 *.pdf
 node_modules
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
