@@ -405,7 +405,7 @@ export function CreditChatPage() {
             <Button
               onClick={handleSend}
               disabled={!input.trim() || isLoading}
-              className="bg-[#1e3a5f] hover:bg-[#2d4f7f] text-white"
+              className="bg-[#1e3a5f] hover:bg-[#2d4f7f] text-blue"
             >
               <Send className="w-5 h-5" />
             </Button>
@@ -413,19 +413,16 @@ export function CreditChatPage() {
           <div className="mt-3 flex justify-end">
             <Button
               onClick={handleFinalize}
-              disabled={messages.length < 4 || isFinalizing}
-              className="bg-green-600 hover:bg-green-700 text-white"
+              disabled={isFinalizing}
+              className="bg-green-600 hover:bg-green-700 text-blue"
             >
               {isFinalizing ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  Building Stack...
+                  Finalizing...
                 </>
               ) : (
-                <>
-                  <CheckCircle2 className="w-4 h-4 mr-2" />
-                  Get My Card Recommendations
-                </>
+                "Finalize"
               )}
             </Button>
           </div>
